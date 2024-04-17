@@ -1,24 +1,27 @@
-import logo from './logo.svg';
-import './App.css';
+import React, { Suspense, lazy } from 'react';
+import {
+  BrowserRouter as Router,
+  Routes, // Use Routes instead of Switch
+  Route,
+} from 'react-router-dom';
+
+// Lazy imports for your components
+const Home = lazy(() => import('./components/Home'));
+const TestFront = lazy(() => import('./modules/TestFront'));
+const AnotherFront = lazy(() => import('./modules/Test2Front'));
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <Router>
+      <Suspense fallback={<div>Loading...</div>}>
+        <Routes>
+          <Route path="/" element={<Home />} /> {/* Home component now wrapped in element prop */}
+          <Route path="/testfront" element={<TestFront />} />
+          <Route path="/anotherfront" element={<AnotherFront />} />
+          {/* Add more routes as needed */}
+        </Routes>
+      </Suspense>
+    </Router>
   );
 }
 

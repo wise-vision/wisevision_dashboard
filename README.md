@@ -1,3 +1,31 @@
+# Build
+
+```
+sudo apt update
+sudo apt install nodejs npm
+
+sudo apt update
+sudo apt install docker.io
+sudo systemctl start docker
+sudo systemctl enable docker
+
+sudo apt install docker-compose
+
+cd wisevision-dashboard
+npm install
+npm install react-router-dom
+```
+
+# Run
+
+```
+cd wisevision-dashboard
+docker build -t wisevision-dashboard .
+docker run -p 3000:3000 wisevision-dashboard
+```
+
+#
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
