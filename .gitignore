@@ -21,8 +21,8 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-app/server/__pycache__/__init__.cpython-310.pyc
-app/server/__pycache__/run.cpython-310.pyc
-app/server/api/web/__pycache__/messages_api.cpython-310.pyc
-app/server/data_object/__pycache__/message_objects.cpython-310.pyc
-app/server/service/__pycache__/ros_topics.cpython-310.pyc
+app/server/__pycache__/
+app/server/__pycache__/
+app/server/api/web/__pycache__/
+app/server/data_object/__pycache__/
+app/server/service/__pycache__/

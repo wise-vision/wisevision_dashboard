@@ -45,12 +45,12 @@ To be exported to a separate file
 
 ### Get Endpoints
 
-| Endpoint         | Description                         | Request parameters | Response parameters                                                     |
-| ---------------- | ----------------------------------- | ------------------ | ----------------------------------------------------------------------- |
-| /api/topics      | Get all topics                      | None               | JSON array of objects containing `name` [string] and `type` [string]    |
-| /api/services    | Get all services                    | None               | JSON array of objects containing `name` [string] and `type` [string]    |
-| /api/topic/:data | Get last data published for a topic | `data` [string]    | JSON object containing `ROS 2 message` [string] (one of ros2 msg types) |
-
+| Endpoint         | Description                         | Call | Request parameters | Response parameters                                                     |
+| ---------------- | ----------------------------------- | ---- | ------------------ | ----------------------------------------------------------------------- |
+| /api/topics      | Get all topics                      | GET  | None               | JSON array of objects containing `name` [string] and `type` [string]    |
+| /api/services    | Get all services                    | GET  | None               | JSON array of objects containing `name` [string] and `type` [string]    |
+| /api/topic/:data | Get last data published for a topic | GET  | `data` [string]    | JSON object containing `ROS 2 message` [string] (one of ros2 msg types) |
+| api/create_automatic_action            | Create automatic action            | POST | [SRV def](https://github.com/wise-vision/ros2_automatic_action_execution/blob/main/automatic_action_msgs/srv/AutomaticAction.srv) | Bool status informing if created succeeded or not |
 
 
 
@@ -120,10 +120,21 @@ curl "http://localhost:5000/api/topic_echo/topic?type=std_msgs/msg/String"
   "message": "Hello World"
 }
 ```
+### api/create_automatic_action
 
-
-### Post Endpoints
-
-| Endpoint           | Description    | Request parameters             | Response parameters             |
-| ------------------ | -------------- | ------------------------------ | ------------------------------- |
-| /api/service/:name | Call a service | ROS 2 service request [string] | ROS 2 service response [string] |
+```bash
+curl -X POST http://localhost:5000/api/create_automatic_action -H "Content-Type: application/json" -d '{
+    "listen_topic": "/topic_input",
+    "listen_message_type": "std_msgs/msg/Int32",
+    "value": "data",
+    "trigger_val": "50.0",
+    "trigger_type": "LessThan",
+    "pub_topic": "/topic_output",
+    "pub_message_type": "std_msgs/msg/String",
+    "trigger_text": "test",
+    "data_validity_ms": 5000
+}'
+{
+  "success": true
+}
+```  
