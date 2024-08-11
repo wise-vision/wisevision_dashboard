@@ -27,6 +27,18 @@ def echo_topic_message(topic_name):
     message = ros2_manager.get_topic_message(topic_name, topic_type)
     return jsonify({'message': message}), 200
 
+@messages_api.route('/create_automatic_action', methods=['POST'])
+def create_automatic_action():
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Request must be JSON'}), 400
+
+    try:
+        success = ros2_manager.call_automatic_action_service(data)
+        return jsonify({'success': success}), 200 if success else 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 ###
 
 @app.teardown_appcontext

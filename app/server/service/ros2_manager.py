@@ -3,6 +3,7 @@ import rclpy
 from rclpy.node import Node
 from ..data_object.message_objects import ROS2Topic, ROS2Topics, ROS2Service, ROS2Services
 import importlib
+from automatic_action_msgs.srv import AutomaticAction
 
 
 class ROS2Manager:
@@ -66,6 +67,31 @@ class ROS2Manager:
         finally:
             # Clean up the subscription after receiving the message or timing out
             self.node.destroy_subscription(subscription)
+    
+    def call_automatic_action_service(self, params):
+        client = self.node.create_client(AutomaticAction, '/create_automatic_action')
+        
+        while not client.wait_for_service(timeout_sec=1.0):
+            if not rclpy.ok():
+                raise Exception("Interrupted while waiting for the service. ROS shutdown.")
+
+        request = AutomaticAction.Request(
+            listen_topic=params['listen_topic'],
+            listen_message_type=params['listen_message_type'],
+            value=params['value'],
+            trigger_val=params['trigger_val'],
+            trigger_type=params['trigger_type'],
+            pub_topic=params['pub_topic'],
+            pub_message_type=params['pub_message_type'],
+            trigger_text=params['trigger_text'],
+            data_validity_ms=params['data_validity_ms']
+        )
+
+        future = client.call_async(request)
+        rclpy.spin_until_future_complete(self.node, future)
+        response = future.result()
+
+        return response.success if response else False
 
 
     def shutdown(self):
