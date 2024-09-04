@@ -26,3 +26,4 @@ app/server/__pycache__/
 app/server/api/web/__pycache__/
 app/server/data_object/__pycache__/
 app/server/service/__pycache__/
+app/server/tests/__pycache__/
