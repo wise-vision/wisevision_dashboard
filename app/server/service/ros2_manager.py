@@ -3,8 +3,8 @@ import rclpy
 from rclpy.node import Node
 from ..data_object.message_objects import ROS2Topic, ROS2Topics, ROS2Service, ROS2Services
 import importlib
-from rosidl_runtime_py import get_message, get_service
-from rosidl_runtime_py.utilities import get_message_names_and_types, get_service_names_and_types
+from rosidl_runtime_py.utilities import get_message, get_service
+# from rosidl_runtime_py.utilities import get_message_names_and_types, get_service_names_and_types
 from rclpy.qos import QoSProfile
 
 class ROS2Manager:
