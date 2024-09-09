@@ -4,7 +4,6 @@ from rclpy.node import Node
 from ..data_object.message_objects import ROS2Topic, ROS2Topics, ROS2Service, ROS2Services
 import importlib
 from rosidl_runtime_py.utilities import get_message, get_service
-# from rosidl_runtime_py.utilities import get_message_names_and_types, get_service_names_and_types
 from rclpy.qos import QoSProfile
 
 class ROS2Manager:
@@ -28,7 +27,9 @@ class ROS2Manager:
             ros_services.add_service(ROS2Service(name, service_type))
         return ros_services
 
-    def get_topic_message(self, topic_name, topic_type):
+#def get_topic_message ## from black box
+
+    def get_topic_message(self, topic_name, topic_type):  # get_new_topic_message from ros2 topic 
         msg_type = get_message(topic_type)
         if not msg_type:
             raise ImportError(f"Could not find message type {topic_type}")
@@ -39,7 +40,7 @@ class ROS2Manager:
             nonlocal message_received
             message_received = msg
 
-        subscription = self.node.create_subscription(msg_type, topic_name, callback, QoSProfile(depth=10))
+        subscription = self.node.create_subscription(msg_type, topic_name, callback, QoSProfile(depth=1))
 
         try:
             timeout_sec = 5.0
