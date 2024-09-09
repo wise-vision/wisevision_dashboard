@@ -51,6 +51,11 @@ To be exported to a separate file
 | /api/services    | Get all services                    | GET  | None               | JSON array of objects containing `name` [string] and `type` [string]    |
 | /api/topic/:data | Get last data published for a topic | GET  | `data` [string]    | JSON object containing `ROS 2 message` [string] (one of ros2 msg types) |
 | api/create_automatic_action            | Create automatic action            | POST | [SRV def](https://github.com/wise-vision/ros2_automatic_action_execution/blob/main/automatic_action_msgs/srv/AutomaticAction.srv) | Bool status informing if created succeeded or not |
+| api/get_messages | Get messages from data base | POST | [SRV def](https://github.com/wise-vision/lora_msgs/blob/dev/srv/GetMessages.srv) | JSON object containing ROS 2 messages [MicroPublisher or Int32 with [TimeStamps](https://github.com/wise-vision/lora_msgs/blob/dev/msg/FullDateTime.msg)] |
+| api/topic_echo_data_base/:data | Get last message from data base | GET | `data` [string]| JSON object containing ROS 2 message MicroPublisher or Int32 with [TimeStamps](https://github.com/wise-vision/lora_msgs/blob/dev/msg/FullDateTime.msg) [string] (one of ros2 msg types) |
+| api/topic_echo_data_base_any/:data | Get any type from data base | GET | `data` [string] | JSON object containing ROS 2 messages of any type with [TimeStamps](https://github.com/wise-vision/lora_msgs/blob/dev/msg/FullDateTime.msg) [string] (one of messsage type & number_of & time_start & time_end)
+
+
 
 
 
@@ -138,3 +143,141 @@ curl -X POST http://localhost:5000/api/create_automatic_action -H "Content-Type:
   "success": true
 }
 ```  
+
+### api/get_messages
+
+```bash
+curl -X POST http://localhost:5000/api/get_messages -H "Content-Type: application/json" -d '{
+  "topic_name": "sensor_publisher",
+  "message_type": "lora_msgs/MicroPublisher",
+  "number_of_msgs": 1
+}'
+{
+  "int32_msgs": [],
+  "micro_publisher_data": [
+    {
+      "sensors_data": [
+        {
+          "id": 111537764,
+          "tpb_value": {
+            "binary_value": true,
+            "pressure": 0,
+            "temperature": 0,
+            "value_type": 2
+          }
+        },
+        {
+          "id": 438792350,
+          "tpb_value": {
+            "binary_value": false,
+            "pressure": 25964,
+            "temperature": 0,
+            "value_type": 1
+          }
+        },
+        {
+          "id": 2142757034,
+          "tpb_value": {
+            "binary_value": false,
+            "pressure": 24588,
+            "temperature": 0,
+            "value_type": 1
+          }
+        },
+        {
+          "id": 155324914,
+          "tpb_value": {
+            "binary_value": false,
+            "pressure": 0,
+            "temperature": 0,
+            "value_type": 2
+          }
+        }
+      ]
+    }
+  ],
+  "timestamps": [
+    {
+      "day": 4,
+      "hour": 9,
+      "minute": 24,
+      "month": 9,
+      "nanosecond": 893372345,
+      "second": 0,
+      "year": 2024
+    }
+  ]
+}
+
+
+```
+
+## api/topic_echo_data_base/<topic_name>?type=<topic_type>
+``` bash
+curl "http://localhost:5000/api/topic_echo_data_base/sensor_publisher?type=lora_msgs/MicroPublisher"
+{
+  "int32_msgs": [],
+  "micro_publisher_data": [
+    {
+      "sensors_data": [
+        {
+          "id": 1998898814,
+          "tpb_value": {
+            "binary_value": false,
+            "pressure": 0,
+            "temperature": 34,
+            "value_type": 0
+          }
+        }
+      ]
+    }
+  ],
+  "timestamps": [
+    {
+      "day": 5,
+      "hour": 6,
+      "minute": 31,
+      "month": 9,
+      "nanosecond": 632699344,
+      "second": 3,
+      "year": 2024
+    }
+  ]
+}
+
+```
+
+## Premium: api/topic_echo_data_base_any/<string:topic_name>
+``` bash
+curl "http://localhost:5000/api/topic_echo_data_base_any/topic?type=std_msgs/msg/String&number_of_msgs=2"
+{
+  "messages": [
+    {
+      "data": "Hello World"
+    },
+    {
+      "data": "Hello World"
+    }
+  ],
+  "timestamps": [
+    {
+      "day": 5,
+      "hour": 11,
+      "minute": 7,
+      "month": 9,
+      "nanosecond": 800521846,
+      "second": 15,
+      "year": 2024
+    },
+    {
+      "day": 5,
+      "hour": 11,
+      "minute": 7,
+      "month": 9,
+      "nanosecond": 742738910,
+      "second": 16,
+      "year": 2024
+    }
+  ]
+}
+```
