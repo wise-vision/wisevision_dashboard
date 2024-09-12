@@ -119,6 +119,7 @@ ros2 topic pub /topic std_msgs/String 'data: Hello World'
 
 And on another terminal run the following command to get the last data published to the topic
 
+If topic name has `/` replace them with `%`
 ```json
 curl "http://localhost:5000/api/topic_echo/topic?type=std_msgs/msg/String"
 {
@@ -248,6 +249,7 @@ curl "http://localhost:5000/api/topic_echo_data_base/sensor_publisher?type=lora_
 ```
 
 ## Premium: api/topic_echo_data_base_any/<string:topic_name>
+If topic name has `/` replace them with `%`
 ``` bash
 curl "http://localhost:5000/api/topic_echo_data_base_any/topic?type=std_msgs/msg/String&number_of_msgs=2"
 {
