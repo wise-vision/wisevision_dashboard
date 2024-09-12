@@ -28,11 +28,13 @@ class ROS2Manager:
             service_type = types[0] if types else 'UnknownType'
             ros_services.add_service(ROS2Service(name, service_type))
         return ros_services
-
-#def get_topic_message ## from black box
+    
+    def replace_percent_with_slash(self, topic_name):
+        return topic_name.replace('%', '/')
 
     def get_topic_message(self, topic_name, topic_type):  # get_new_topic_message from ros2 topic 
         msg_type = get_message(topic_type)
+        topic_name = self.replace_percent_with_slash(topic_name)
         if not msg_type:
             raise ImportError(f"Could not find message type {topic_type}")
 
@@ -144,7 +146,9 @@ class ROS2Manager:
                 raise Exception("Interrupted while waiting for the service. ROS shutdown.")
 
         request = service_type.Request()
-        request.topic_name = params.get('topic_name')
+        topic_name = params.get('topic_name')
+        topic_name = self.replace_percent_with_slash(topic_name)
+        request.topic_name = topic_name
         request.message_type = 'any'
         request.number_of_msgs = params.get('number_of_msgs', 0)
 
@@ -195,15 +199,25 @@ class ROS2Manager:
                     result = {}
                     for field_name, field_type in msg.get_fields_and_field_types().items():
                         value = getattr(msg, field_name)
+
                         if hasattr(value, 'get_fields_and_field_types'):
                             result[field_name] = serialize_ros_message(value)
                         elif isinstance(value, list):
-                            result[field_name] = [
-                                serialize_ros_message(v) if hasattr(v, 'get_fields_and_field_types') else v
-                                for v in value
-                            ]
-                        else:
+                            serialized_list = []
+                            for item in value:
+                                if hasattr(item, 'get_fields_and_field_types'):
+                                    serialized_list.append(serialize_ros_message(item))
+                                else:
+                                    serialized_list.append(item)
+                            result[field_name] = serialized_list
+                        elif isinstance(value, (bytes, bytearray)):
+                            result[field_name] = value.decode('utf-8', errors='ignore')
+                        elif isinstance(value, (int, float, str, bool)):
                             result[field_name] = value
+                        else:
+                            print(f"Unsupported type for JSON serialization: {field_name} of type {type(value)}")
+                            result[field_name] = str(value)
+
                     return result
 
                 serialized_response = {
