@@ -58,7 +58,7 @@ class ROS2Manager:
             self.node.destroy_subscription(subscription)
 
     def call_automatic_action_service(self, params):
-        service_type = get_service('automatic_action_msgs/srv/AutomaticAction')
+        service_type = get_service('lora_msgs/srv/AutomaticAction')
         if not service_type:
             raise ImportError("Service type not found for 'AutomaticAction'")
 

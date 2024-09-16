@@ -1,8 +1,9 @@
 # Build
 
-```
-sudo apt update
-sudo apt install nodejs npm
+``` bash
+mkdir wisevision_dashboard_ws
+cd wisevision_dashboard_ws
+git clone git@github.com:wise-vision/wisevision-dashboard.git
 
 sudo apt update
 sudo apt install docker.io
@@ -10,19 +11,27 @@ sudo systemctl start docker
 sudo systemctl enable docker
 
 sudo apt install docker-compose
+sudo apt install python3-pip
 
+pip3 install --no-cache-dir -r requirements.txt
+
+#build and install lora_msgs
+mkdir -p ros2_ws/src
 cd wisevision-dashboard
-npm install
-npm install react-router-dom
+vsc import ../ros2_ws/src > msgs.repos
+cd ../ros2_ws
+rosdep install --from-paths src -i -y --rosdistro humble
+colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
+source install/setup.bash
 ```
 
 # Run
 
 ```
 cd wisevision-dashboard
-docker build -t wisevision-dashboard .
-docker run -p 3000:3000 wisevision-dashboard
+GITHUB_TOKEN=<your_github_token> docker-compose up --build
 ```
+- [How to create github personal-access-tokens](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-fine-grained-personal-access-token)
 
 # Run local
 
