@@ -9,8 +9,8 @@ RUN apt-get update && apt-get install -y \
     rm -rf /var/lib/apt/lists/*
 
 RUN apt-get update && apt-get install -y \
-    ros-humble-ament-cmake \
-    ros-humble-ros-base && \
+    ros-$ROS_DISTRO-ament-cmake \
+    ros-$ROS_DISTRO-ros-base && \
     rm -rf /var/lib/apt/lists/*
 
 ARG GITHUB_TOKEN
@@ -25,9 +25,9 @@ RUN mkdir -p src && \
     vcs import src < msgs.repos
 
 RUN apt-get update && rosdep update && \
-    rosdep install --from-paths src -i -y --rosdistro humble
+    rosdep install --from-paths src -i -y --rosdistro $ROS_DISTRO
 
-RUN . /opt/ros/humble/setup.sh && \
+RUN . /opt/ros/$ROS_DISTRO/setup.sh && \
     colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
 
 WORKDIR /usr/src/app
@@ -39,10 +39,10 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 COPY . .
 
 SHELL ["/bin/bash", "-c"]
-RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc && \
+RUN echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> ~/.bashrc && \
     echo "source /ros2_ws/install/setup.bash" >> ~/.bashrc
-RUN /bin/bash -c "source /opt/ros/humble/setup.bash && source /ros2_ws/install/setup.bash"
+RUN /bin/bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && source /ros2_ws/install/setup.bash"
 
 EXPOSE 5000
 
-CMD ["bash", "-c", "source /opt/ros/humble/setup.bash && source /ros2_ws/install/setup.bash && python3 -m app.server.run"]
+CMD ["bash", "-c", "source /opt/ros/$ROS_DISTRO/setup.bash && source /ros2_ws/install/setup.bash && python3 -m app.server.run"]
