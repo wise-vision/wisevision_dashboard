@@ -4,8 +4,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        - GITHUB_TOKEN=${GITHUB_TOKEN}
     ports:
       - '5000:5000'
     volumes:
