@@ -1,4 +1,4 @@
-FROM czarekk/ros_with_lora_msgs:humble
+FROM wisevision/ros_with_lora_msgs:humble
 
 RUN apt-get update && apt-get install -y \
     python3-pip \
