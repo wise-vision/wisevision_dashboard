@@ -8,8 +8,13 @@ services:
         - GITHUB_TOKEN=${GITHUB_TOKEN}
     ports:
       - '5000:5000'
+    network_mode: "host"
+    ipc: "host"
+    pid: "host"
+    stdin_open: true
+    tty: true
     volumes:
       - .:/usr/src/app
     environment:
-      FLASK_ENV: development
+      FLASK_ENV: debug
   

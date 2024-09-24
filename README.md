@@ -135,7 +135,7 @@ curl "http://localhost:5000/api/topic_echo/topic?type=std_msgs/msg/String"
   "message": "Hello World"
 }
 ```
-### api/create_automatic_action
+### api/create_automatic_action (automatic_action_execution)
 
 ```bash
 curl -X POST http://localhost:5000/api/create_automatic_action -H "Content-Type: application/json" -d '{
@@ -153,6 +153,53 @@ curl -X POST http://localhost:5000/api/create_automatic_action -H "Content-Type:
   "success": true
 }
 ```  
+
+### api/create_combined_automatic_action (automatic_action_execution)
+
+```bash
+curl -X POST http://localhost:5000/api/create_combined_automatic_action -H "Content-Type: application/json" -d '{
+    "listen_topics": ["/topic1", "/topic2", "/topic3"],
+    "logic_expression": "/topic1 and /topic2 or /topic3",
+    "pub_topic": "/combined_action"
+}'
+{
+  "success": false
+}
+```
+
+
+### api/delete_automatic_action (automatic_action_execution)
+```bash
+curl -X POST http://localhost:5000/api/delete_automatic_action -H "Content-Type: application/json" -d '{
+    "listen_topic_to_delete": "/topic_input"
+}'
+{
+  "success": true
+}
+```
+
+### api/delete_combined_automatic_action (automatic_action_execution)
+
+```bash
+curl -X POST http://localhost:5000/api/delete_combined_automatic_action -H "Content-Type: application/json" -d '{
+    "name_of_combined_topics_publisher": "combined_publisher_1"
+}'
+{
+  "success": false
+}
+```
+
+### api/available_topics (automatic_action_execution)
+
+```bash
+curl -X GET http://localhost:5000/api/available_topics
+{
+  "available_topics": [
+    "/topic_input",
+    "/sensor_publisher"
+  ]
+}
+```
 
 ### api/get_messages
 
@@ -292,3 +339,5 @@ curl "http://localhost:5000/api/topic_echo_data_base_any/topic?type=std_msgs/msg
   ]
 }
 ```
+### Notifications
+The application supports real-time notifications via WebSockets using Socket.IO. Notifications are triggered by events from the ROS2 system [Run this to trigger notications](https://github.com/wise-vision/test_env_notifications). These notifications are available to connected clients for immediate updates.

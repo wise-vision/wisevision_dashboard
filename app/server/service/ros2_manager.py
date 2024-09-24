@@ -7,11 +7,14 @@ import importlib
 from dateutil import parser  
 from rosidl_runtime_py.utilities import get_message, get_service
 from rclpy.qos import QoSProfile
+import threading
 
 class ROS2Manager:
     def __init__(self):
         rclpy.init()
         self.node = Node('ros2_topic_list_node')
+        self.notification_subscriber = None
+        self.subscription_created = False 
 
     def get_topic_list(self):
         topics = self.node.get_topic_names_and_types()
@@ -74,6 +77,87 @@ class ROS2Manager:
         response = future.result()
 
         return response.success if response else False
+    
+    def call_delete_automatic_action_service(self, params):
+        service_type = get_service('lora_msgs/srv/AutomaticActionDelete')
+        if not service_type:
+            raise ImportError("Service type not found for 'AutomaticActionDelete'")
+
+        client = self.node.create_client(service_type, '/delete_automatic_action')
+        while not client.wait_for_service(timeout_sec=1.0):
+            if not rclpy.ok():
+                raise Exception("Interrupted while waiting for the service. ROS shutdown.")
+
+        request = service_type.Request(listen_topic_to_delete=params.get('listen_topic_to_delete'))
+
+        future = client.call_async(request)
+        rclpy.spin_until_future_complete(self.node, future)
+        response = future.result()
+
+        return response.success if response else False
+    
+    def call_combined_automatic_action_service(self, params):
+        service_type = get_service('lora_msgs/srv/AutomaticActionConnection')
+        if not service_type:
+            raise ImportError("Service type not found for 'AutomaticActionConnection'")
+
+        client = self.node.create_client(service_type, '/create_combined_automatic_action')
+        while not client.wait_for_service(timeout_sec=1.0):
+            if not rclpy.ok():
+                raise Exception("Interrupted while waiting for the service. ROS shutdown.")
+
+        request = service_type.Request(
+            listen_topics=params.get('listen_topics', []),
+            logic_expression=params.get('logic_expression', ''),
+            pub_topic=params.get('pub_topic', '')
+        )
+
+        future = client.call_async(request)
+        rclpy.spin_until_future_complete(self.node, future)
+        response = future.result()
+
+        return response.success if response else False
+    
+    def call_delete_combined_automatic_action_service(self, params):
+        service_type = get_service('lora_msgs/srv/AutomaticActionCombinedDelete')
+        if not service_type:
+            raise ImportError("Service type not found for 'AutomaticActionCombinedDelete'")
+
+        client = self.node.create_client(service_type, '/delete_combined_automatic_action')
+        while not client.wait_for_service(timeout_sec=1.0):
+            if not rclpy.ok():
+                raise Exception("Interrupted while waiting for the service. ROS shutdown.")
+
+        request = service_type.Request(
+            name_of_combined_topics_publisher=params.get('name_of_combined_topics_publisher')
+        )
+
+        future = client.call_async(request)
+        rclpy.spin_until_future_complete(self.node, future)
+        response = future.result()
+
+        return response.success if response else False
+    
+    def call_available_topics_service(self):
+        service_type = get_service('lora_msgs/srv/AvailableTopics')
+        if not service_type:
+            raise ImportError("Service type not found for 'AvailableTopics'")
+
+        client = self.node.create_client(service_type, '/available_topics')
+        while not client.wait_for_service(timeout_sec=1.0):
+            if not rclpy.ok():
+                raise Exception("Interrupted while waiting for the service. ROS shutdown.")
+
+        request = service_type.Request()
+
+        future = client.call_async(request)
+        rclpy.spin_until_future_complete(self.node, future)
+        response = future.result()
+
+        if response:
+            return response.available_topics
+        else:
+            return []
     
     def call_get_messages_service(self, params):
         service_type = get_service('lora_msgs/srv/GetMessages')
@@ -229,6 +313,43 @@ class ROS2Manager:
                 raise Exception(f"Message deserialization error:” {e}")
         else:
             return None
+    
+    def start_dynamic_notification_listener(self, callback_function):
+        
+        if self.subscription_created:
+            print("Subscripction already created")
+            return
+
+        
+        notification_type = get_message('lora_msgs/msg/Notification')
+        if notification_type is None:
+            raise ImportError("Can't load message type: 'lora_msgs/msg/Notification'")
+
+        def notification_callback(msg):
+            notification_data = {
+                'source': msg.source,
+                'severity': self.severity_to_string(msg.severity),
+                'info': msg.info,
+            }
+            callback_function(notification_data)
+
+        self.notification_subscriber = self.node.create_subscription(
+            notification_type,
+            'notifications',
+            notification_callback,
+            QoSProfile(depth=10)
+        )
+
+        self.subscription_created = True
+        threading.Thread(target=rclpy.spin, args=(self.node,)).start()
+
+    def severity_to_string(self, severity):
+        severity_map = {
+            0: 'NORMAL',
+            1: 'WARNING',
+            2: 'ERROR'
+        }
+        return severity_map.get(severity, 'UNKNOWN')
        
     def shutdown(self):
         rclpy.shutdown()

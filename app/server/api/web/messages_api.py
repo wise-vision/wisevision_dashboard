@@ -1,8 +1,8 @@
-from flask import Flask, jsonify, Blueprint, request
+from flask import jsonify, Blueprint, request
 from ....server.service.ros2_manager import ros2_manager
 from rosidl_runtime_py.utilities import get_message
+import threading
 
-app = Flask(__name__)
 messages_api = Blueprint('messages_api', __name__)
 
 
@@ -229,17 +229,60 @@ def create_automatic_action():
         return jsonify({'success': success}), 200 if success else 500
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
-###
-
-@app.teardown_appcontext
-def shutdown_node(exception=None):
-    ros2_manager.shutdown()
-
-
-app.register_blueprint(messages_api)
-
-if __name__ == '__main__':
-
-    app.run(debug=True)
     
+@messages_api.route('/delete_automatic_action', methods=['POST'])
+def delete_automatic_action():
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Request must be JSON'}), 400
+
+    try:
+        success = ros2_manager.call_delete_automatic_action_service(data)
+        return jsonify({'success': success}), 200 if success else 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@messages_api.route('/create_combined_automatic_action', methods=['POST'])
+def create_combined_automatic_action():
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Request must be JSON'}), 400
+
+    try:
+        success = ros2_manager.call_combined_automatic_action_service(data)
+        return jsonify({'success': success}), 200 if success else 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@messages_api.route('/delete_combined_automatic_action', methods=['POST'])
+def delete_combined_automatic_action():
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Request must be JSON'}), 400
+
+    try:
+        success = ros2_manager.call_delete_combined_automatic_action_service(data)
+        return jsonify({'success': success}), 200 if success else 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+@messages_api.route('/available_topics', methods=['GET'])
+def available_topics():
+    try:
+        available_topics = ros2_manager.call_available_topics_service()
+        return jsonify({'available_topics': available_topics}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+def start_ros2_subscription():
+    from app.server import socketio
+    def push_notification_callback(notification_data):
+        socketio.emit('new_notification', notification_data)
+        print('New notification:', notification_data)
+
+    ros2_thread = threading.Thread(
+        target=ros2_manager.start_dynamic_notification_listener,
+        args=(push_notification_callback,)
+    )
+    ros2_thread.daemon = True
+    ros2_thread.start()
