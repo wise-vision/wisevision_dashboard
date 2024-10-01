@@ -339,5 +339,12 @@ curl "http://localhost:5000/api/topic_echo_data_base_any/topic?type=std_msgs/msg
   ]
 }
 ```
+
+## api/topic_echo_data_base_any_last_week/<string:topic_name>
+```bash
+curl "http://localhost:5000/api/topic_echo_data_base_any_last_week/sensor_publisher_temp?type=lora_msgs/msg/E5BoardUplink"
+```
+
+
 ### Notifications
 The application supports real-time notifications via WebSockets using Socket.IO. Notifications are triggered by events from the ROS2 system [Run this to trigger notications](https://github.com/wise-vision/test_env_notifications). These notifications are available to connected clients for immediate updates.

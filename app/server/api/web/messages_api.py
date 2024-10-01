@@ -183,7 +183,7 @@ def get_last_message_from_topic(topic_name):
 def get_messages_any(topic_name):
     topic_type = request.args.get('type')
     if not topic_type:
-        return jsonify({'error': 'Typ wiadomości jest wymagany'}), 400
+        return jsonify({'error': 'Message type is required'}), 400
 
 
     number_of_msgs = int(request.args.get('number_of_msgs', 0))  # Default to 0 if not specified, if 0 then all messages will be returned
@@ -207,7 +207,45 @@ def get_messages_any(topic_name):
         if response:
             return jsonify(response), 200
         else:
-            return jsonify({'error': 'Brak wiadomości'}), 500
+            return jsonify({'error': 'No messages found'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+from datetime import datetime, timedelta
+
+from datetime import datetime, timedelta, timezone
+
+@messages_api.route('/topic_echo_data_base_any_last_week/<string:topic_name>', methods=['GET'])
+def get_messages_last7days(topic_name):
+    topic_type = request.args.get('type')
+    if not topic_type:
+        return jsonify({'error': 'Message type is required'}), 400
+
+    number_of_msgs = 0  # Default to 0 to retrieve all messages
+
+    # Use UTC datetime for the last 7 days
+    today = datetime.now(timezone.utc)
+    seven_days_ago = today - timedelta(days=7)
+
+    # Convert the dates to ISO 8601 format (with timezone info)
+    time_start = seven_days_ago.isoformat() 
+    time_end = today.isoformat()
+
+    params = {
+        'topic_name': topic_name,
+        'message_type': topic_type,
+        'number_of_msgs': number_of_msgs,
+        'time_start': time_start,
+        'time_end': time_end
+    }
+
+    try:
+        # Call to service to retrieve messages
+        response = ros2_manager.call_get_messages_service_any(params)
+        if response:
+            return jsonify(response), 200
+        else:
+            return jsonify({'error': 'No messages found'}), 500
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
