@@ -321,9 +321,9 @@ class ROS2Manager:
             return
 
         
-        notification_type = get_message('lora_msgs/msg/Notification')
+        notification_type = get_message('notification_msgs/msg/Notification')
         if notification_type is None:
-            raise ImportError("Can't load message type: 'lora_msgs/msg/Notification'")
+            raise ImportError("Can't load message type: 'notification_msgs/msg/Notification'")
 
         def notification_callback(msg):
             notification_data = {

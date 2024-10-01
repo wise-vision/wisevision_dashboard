@@ -1,4 +1,4 @@
-FROM wisevision/ros_with_lora_msgs:humble
+FROM wisevision/ros_with_wisevision_msgs:humble
 
 RUN apt-get update && apt-get install -y \
     python3-pip \
@@ -18,6 +18,6 @@ COPY . .
 
 SHELL ["/bin/bash", "-c"]
 
-ENTRYPOINT ["/bin/bash", "-c", "source /opt/ros/$ROS_DISTRO/setup.bash && source /root/lora_msgs_ws/install/setup.bash && exec python3 -m app.server.run"]
+ENTRYPOINT ["/bin/bash", "-c", "source /opt/ros/$ROS_DISTRO/setup.bash && source /root/wisevision_msgs_ws/install/setup.bash && exec python3 -m app.server.run"]
 
 EXPOSE 5000
