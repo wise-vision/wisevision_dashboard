@@ -1,7 +1,7 @@
 from flask import jsonify, Blueprint, request
 from ....server.service.ros2_manager import ros2_manager
 from rosidl_runtime_py.utilities import get_message
-import threading
+from datetime import datetime, timedelta, timezone
 
 messages_api = Blueprint('messages_api', __name__)
 
@@ -210,10 +210,6 @@ def get_messages_any(topic_name):
             return jsonify({'error': 'No messages found'}), 500
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-    
-from datetime import datetime, timedelta
-
-from datetime import datetime, timedelta, timezone
 
 @messages_api.route('/topic_echo_data_base_any_last_week/<string:topic_name>', methods=['GET'])
 def get_messages_last7days(topic_name):
@@ -318,9 +314,4 @@ def start_ros2_subscription():
         socketio.emit('new_notification', notification_data)
         print('New notification:', notification_data)
 
-    ros2_thread = threading.Thread(
-        target=ros2_manager.start_dynamic_notification_listener,
-        args=(push_notification_callback,)
-    )
-    ros2_thread.daemon = True
-    ros2_thread.start()
+    ros2_manager.start_dynamic_notification_listener(push_notification_callback)

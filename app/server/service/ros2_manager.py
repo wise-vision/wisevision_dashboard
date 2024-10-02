@@ -13,6 +13,7 @@ class ROS2Manager:
     def __init__(self):
         rclpy.init()
         self.node = Node('ros2_topic_list_node')
+        self.subscriber_node = Node('ros2_subscriber_node')
         self.notification_subscriber = None
         self.subscription_created = False 
 
@@ -223,7 +224,6 @@ class ROS2Manager:
         service_type = get_service('lora_msgs/srv/GetMessages')
         if not service_type:
             raise ImportError("Service type not found for 'GetMessages'")
-
         client = self.node.create_client(service_type, '/get_messages')
         while not client.wait_for_service(timeout_sec=1.0):
             if not rclpy.ok():
@@ -260,6 +260,10 @@ class ROS2Manager:
 
         future = client.call_async(request)
         rclpy.spin_until_future_complete(self.node, future)
+        if future.done():
+            print("Service call completed")
+        else:
+            print("Service call did not complete within the timeout")
         response = future.result()
 
         if response:
@@ -333,7 +337,7 @@ class ROS2Manager:
             }
             callback_function(notification_data)
 
-        self.notification_subscriber = self.node.create_subscription(
+        self.notification_subscriber = self.subscriber_node.create_subscription(
             notification_type,
             'notifications',
             notification_callback,
@@ -341,7 +345,11 @@ class ROS2Manager:
         )
 
         self.subscription_created = True
-        threading.Thread(target=rclpy.spin, args=(self.node,)).start()
+        threading.Thread(target=self.spin_subscriber, daemon=True).start()
+    
+    def spin_subscriber(self):
+        while rclpy.ok():
+            rclpy.spin_once(self.subscriber_node, timeout_sec=1.0)
 
     def severity_to_string(self, severity):
         severity_map = {
