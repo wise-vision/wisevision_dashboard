@@ -348,3 +348,77 @@ curl "http://localhost:5000/api/topic_echo_data_base_any_last_week/sensor_publis
 
 ### Notifications
 The application supports real-time notifications via WebSockets using Socket.IO. Notifications are triggered by events from the ROS2 system [Run this to trigger notications](https://github.com/wise-vision/test_env_notifications). These notifications are available to connected clients for immediate updates.
+
+## api/add_gps_device
+```bash
+curl -X POST http://localhost:5000/api/add_gps_device -H "Content-Type: application/json" -d '{
+    "device_name": "Test_Device",
+    "device_eui": {
+        "data": [0, 0, 0, 0, 0, 0, 0, 1]
+    },
+    "nav_value": {
+        "latitude": 52.2297,
+        "longitude": 21.0122,
+        "altitude": 100.0
+    },
+    "is_moving": false
+}'
+{
+  "success": true
+}
+```
+## api/delete_gps_device
+```bash
+curl -X POST http://localhost:5000/api/delete_gps_device -H "Content-Type: application/json" -d '{
+    "device_eui": {
+        "data": [0, 0, 0, 0, 0, 0, 0, 1]
+    }
+}'
+{
+  "success": true
+}
+```
+
+## api/modify_gps_device
+```bash
+curl -X POST http://localhost:5000/api/modify_gps_device -H "Content-Type: application/json" -d '{
+    "device_name": "Updated_Device",
+    "device_eui": {
+        "data": [0, 0, 0, 0, 0, 0, 0, 1]
+    },
+    "nav_value": {
+        "latitude": 52.4064,
+        "longitude": 16.9252,
+        "altitude": 120.0
+    }
+}'
+{
+  "success": true
+}
+```
+
+# Admin api calls
+
+## api/add_storage_to_database
+```bash
+curl -X POST http://localhost:5000/api/add_storage_to_database -H "Content-Type: application/json" -d '{
+    "storage_name": "influxdb"
+}'
+{
+  "success": true
+}
+```
+
+## api/create_database
+
+```bash
+curl -X POST http://localhost:5000/api/create_database -H "Content-Type: application/json" -d '{
+    "key_expr": "demo/example/**",
+    "volume_id": "influxdb",
+    "db_name": "zenoh_example_db",
+    "create_db": true
+}'
+{
+  "success": true
+}
+```
