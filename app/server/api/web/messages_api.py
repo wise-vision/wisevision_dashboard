@@ -178,6 +178,31 @@ def get_last_message_from_topic(topic_name):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     
+
+@messages_api.route('/add_storage_to_database', methods=['POST'])
+def add_storage_to_database():
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Request must be JSON'}), 400
+
+    try:
+        success = ros2_manager.call_add_storage_service(data)
+        return jsonify({'success': success}), 200 if success else 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@messages_api.route('/create_database', methods=['POST'])
+def create_database():
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Request must be JSON'}), 400
+
+    try:
+        success = ros2_manager.call_create_database_service(data)
+        return jsonify({'success': success}), 200 if success else 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500    
+    
 # premium feature   
 @messages_api.route('/topic_echo_data_base_any/<string:topic_name>', methods=['GET'])
 def get_messages_any(topic_name):
@@ -305,6 +330,43 @@ def available_topics():
     try:
         available_topics = ros2_manager.call_available_topics_service()
         return jsonify({'available_topics': available_topics}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+# Gps Devices API
+@messages_api.route('/add_gps_device', methods=['POST'])
+def add_gps_device():
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Request must be JSON'}), 400
+
+    try:
+        success = ros2_manager.call_add_gps_device_service(data)
+        return jsonify({'success': success}), 200 if success else 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+@messages_api.route('/delete_gps_device', methods=['POST'])
+def delete_gps_device():
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Request must be JSON'}), 400
+
+    try:
+        success = ros2_manager.call_delete_gps_device_service(data)
+        return jsonify({'success': success}), 200 if success else 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@messages_api.route('/modify_gps_device', methods=['POST'])
+def modify_gps_device():
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Request must be JSON'}), 400
+
+    try:
+        success = ros2_manager.call_modify_gps_device_service(data)
+        return jsonify({'success': success}), 200 if success else 500
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     

@@ -186,6 +186,126 @@ class ROS2Manager:
         else:
             return None
 
+    # GPS Devices services
+    def call_add_gps_device_service(self, params):
+        service_type = get_service('wisevision_msgs/srv/AddGpsDevice')
+        if not service_type:
+            raise ImportError("Service type not found for 'AddGpsDevice'")
+
+        client = self.node.create_client(service_type, '/add_gps_device')
+        while not client.wait_for_service(timeout_sec=1.0):
+            if not rclpy.ok():
+                raise Exception("Interrupted while waiting for the service. ROS shutdown.")
+        eui64_data = service_type.Request().device_eui
+        eui64_data.data = params.get('device_eui', {}).get('data', [])
+        nav_value_data = service_type.Request().nav_value
+        nav_value_data.latitude = params.get('nav_value', {}).get('latitude', 0.0)
+        nav_value_data.longitude = params.get('nav_value', {}).get('longitude', 0.0)
+        nav_value_data.altitude = params.get('nav_value', {}).get('altitude', 0.0)
+        request = service_type.Request(
+            device_name=params.get('device_name'),
+            device_eui=eui64_data,
+            nav_value=nav_value_data,
+            is_moving=params.get('is_moving')
+        )
+
+        future = client.call_async(request)
+        rclpy.spin_until_future_complete(self.node, future)
+        response = future.result()
+
+        return response.success if response else False
+    
+    def call_delete_gps_device_service(self, params):
+        service_type = get_service('wisevision_msgs/srv/DeleteGpsDevice')
+        if not service_type:
+            raise ImportError("Service type not found for 'DeleteGpsDevice'")
+
+        client = self.node.create_client(service_type, '/delete_gps_device')
+        while not client.wait_for_service(timeout_sec=1.0):
+            if not rclpy.ok():
+                raise Exception("Interrupted while waiting for the service. ROS shutdown.")
+        eui64_data = service_type.Request().device_eui
+        eui64_data.data = params.get('device_eui', {}).get('data', [])
+        request = service_type.Request(device_eui=eui64_data)
+
+        future = client.call_async(request)
+        rclpy.spin_until_future_complete(self.node, future)
+        response = future.result()
+
+        return response.success if response else False
+
+    def call_modify_gps_device_service(self, params):
+        service_type = get_service('wisevision_msgs/srv/ModifyGpsDevice')
+        if not service_type:
+            raise ImportError("Service type not found for 'ModifyGpsDevice'")
+
+        client = self.node.create_client(service_type, '/modify_gps_device')
+        while not client.wait_for_service(timeout_sec=1.0):
+            if not rclpy.ok():
+                raise Exception("Interrupted while waiting for the service. ROS shutdown.")
+        eui64_data = service_type.Request().device_eui
+        eui64_data.data = params.get('device_eui', {}).get('data', [])
+        nav_value_data = service_type.Request().nav_value
+        nav_value_data.latitude = params.get('nav_value', {}).get('latitude', 0.0)
+        nav_value_data.longitude = params.get('nav_value', {}).get('longitude', 0.0)
+        nav_value_data.altitude = params.get('nav_value', {}).get('altitude', 0.0)
+        request = service_type.Request(
+            device_name=params.get('device_name'),
+            device_eui=eui64_data,
+            nav_value=nav_value_data
+        )
+
+        future = client.call_async(request)
+        rclpy.spin_until_future_complete(self.node, future)
+        response = future.result()
+
+        return response.success if response else False
+    # END OF: GPS Devices services
+
+    # Blackbox services
+
+    def call_add_storage_service(self, params):
+        service_type = get_service('wisevision_msgs/srv/AddStorageToDataBase')
+        if not service_type:
+            raise ImportError("Service type not found for 'AddStorageToDataBase'")
+
+        client = self.node.create_client(service_type, '/add_storage_to_database')
+        while not client.wait_for_service(timeout_sec=1.0):
+            if not rclpy.ok():
+                raise Exception("Interrupted while waiting for the service. ROS shutdown.")
+
+        request = service_type.Request(
+            storage_name=params.get('storage_name'),
+        )
+
+        future = client.call_async(request)
+        rclpy.spin_until_future_complete(self.node, future)
+        response = future.result()
+
+        return response.success if response else False
+    
+    def call_create_database_service(self, params):
+        service_type = get_service('wisevision_msgs/srv/CreateDataBase')
+        if not service_type:
+            raise ImportError("Service type not found for 'CreateDataBase'")
+
+        client = self.node.create_client(service_type, '/create_database')
+        while not client.wait_for_service(timeout_sec=1.0):
+            if not rclpy.ok():
+                raise Exception("Interrupted while waiting for the service. ROS shutdown.")
+
+        request = service_type.Request(
+            key_expr=params.get('key_expr'),
+            volume_id=params.get('volume_id'),
+            db_name=params.get('db_name'),
+            create_db=params.get('create_db')
+        )
+
+        future = client.call_async(request)
+        rclpy.spin_until_future_complete(self.node, future)
+        response = future.result()
+
+        return response.success if response else False
 
     def call_get_last_message_service(self, params):
         
@@ -318,6 +438,8 @@ class ROS2Manager:
         else:
             return None
     
+    # END OF: Blackbox services
+
     def start_dynamic_notification_listener(self, callback_function):
         
         if self.subscription_created:
