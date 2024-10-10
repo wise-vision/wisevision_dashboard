@@ -370,6 +370,24 @@ def modify_gps_device():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     
+@messages_api.route('/message_type/<string:topic_name>', methods=['GET'])
+def get_message_type(topic_name):
+    try:
+        message_type = ros2_manager.get_topic_message_type(topic_name)
+        print('Message type:', message_type)
+        return jsonify({'message_type': message_type}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@messages_api.route('/message_structure/<path:message_type>', methods=['GET'])
+def get_message_structure(message_type):
+    print('Message type:', message_type)
+    try:
+        structure = ros2_manager.get_message_structure(message_type)
+        return jsonify(structure), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
 def start_ros2_subscription():
     from app.server import socketio
     def push_notification_callback(notification_data):
@@ -377,3 +395,4 @@ def start_ros2_subscription():
         print('New notification:', notification_data)
 
     ros2_manager.start_dynamic_notification_listener(push_notification_callback)
+
