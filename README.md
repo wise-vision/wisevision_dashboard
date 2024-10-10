@@ -422,3 +422,66 @@ curl -X POST http://localhost:5000/api/create_database -H "Content-Type: applica
   "success": true
 }
 ```
+
+# Message type api calls
+
+## api/message_type/<string:topic_name>
+To call topic name add `%` before `topic_name`
+```bash
+curl -X GET http://localhost:5000/api/message_type/%notifications
+{
+  "message_type": "notification_msgs/msg/Notification"
+}
+```
+
+## api/message_structure/<path:message_type>
+
+If variable is array, type name is in `[]`, e.g.
+```bash
+"angular_velocity_covariance": [
+    "double"
+  ]
+```
+
+* `std_msgs/msg/Float32`
+```bash
+curl -X GET http://localhost:5000/api/message_structure/std_msgs/msg/Float32
+{
+  "data": "float"
+}
+```
+
+* `sensor_msgs/msg/Imu`
+``` bash
+curl -X GET http://localhost:5000/api/message_structure/sensor_msgs/msg/Imu
+{
+  "angular_velocity": {
+    "x": "double",
+    "y": "double",
+    "z": "double"
+  },
+  "angular_velocity_covariance": [
+    "double"
+  ],
+  "header": {
+    "frame_id": "string",
+    "stamp": {
+      "nanosec": "uint32",
+      "sec": "int32"
+    }
+  },
+  "linear_acceleration": "geometry_msgs/msg/Vector3",
+  "linear_acceleration_covariance": [
+    "double"
+  ],
+  "orientation": {
+    "w": "double",
+    "x": "double",
+    "y": "double",
+    "z": "double"
+  },
+  "orientation_covariance": [
+    "double"
+  ]
+}
+```

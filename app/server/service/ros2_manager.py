@@ -447,29 +447,46 @@ class ROS2Manager:
 
 
     def get_topic_message_type(self, topic_name):
-        # return the message used in the topic eg 'std_msgs/msg/String'
         topic_name = self.replace_percent_with_slash(topic_name)
-        topic_type = self.node.get_topic_types_and_types()
-        for name, types in topic_type:
+        topics = self.node.get_topic_names_and_types()
+        for name, types in topics:
             if name == topic_name:
-                return types[0]
+                return types[0] if types else 'UnknownType'
         return None
         
 
     # Get nested message fields
 
     def get_message_structure(self, message_type_str):
+        message_type_str = self.normalize_message_type(message_type_str)
         msg_class = get_message(message_type_str)
         if msg_class is None:
             raise Exception(f"Message type '{message_type_str}' not found")
-        return self._get_message_structure_recursive(msg_class)
+        return self._get_message_structure_recursive(msg_class, processed_types=set())
 
-    def _get_message_structure_recursive(self, msg_class):
+    def normalize_message_type(self, type_str):
+        if type_str.count('/') == 2:
+            return type_str
+        elif type_str.count('/') == 1:
+            package_name, message_name = type_str.split('/')
+            return f"{package_name}/msg/{message_name}"
+        else:
+            return type_str
+
+    def _get_message_structure_recursive(self, msg_class, processed_types, depth=0):
+        indent = '  ' * depth
+        package_name = msg_class.__module__.split('.')[0]
+        msg_type_name = f"{package_name}/msg/{msg_class.__name__}"
+
+        if msg_type_name in processed_types:
+            return msg_type_name  # Avoid infinite recursion
+
+        processed_types.add(msg_type_name)
         structure = OrderedDict()
-        for field_name in msg_class.__slots__:
-            field_name = field_name.strip('_')
-            field_type_str = msg_class._fields_and_field_types[field_name]
+
+        for field_name, field_type_str in msg_class._fields_and_field_types.items():
             field_type = self._parse_field_type(field_type_str)
+
             if field_type['is_array']:
                 element_type = field_type['type']
                 if self._is_primitive_type(element_type):
@@ -477,7 +494,11 @@ class ROS2Manager:
                 else:
                     nested_msg_class = get_message(element_type)
                     if nested_msg_class is not None:
-                        structure[field_name] = [self._get_message_structure_recursive(nested_msg_class)]
+                        structure[field_name] = [
+                            self._get_message_structure_recursive(
+                                nested_msg_class, processed_types, depth + 1
+                            )
+                        ]
                     else:
                         structure[field_name] = [element_type]
             else:
@@ -486,28 +507,37 @@ class ROS2Manager:
                 else:
                     nested_msg_class = get_message(field_type['type'])
                     if nested_msg_class is not None:
-                        structure[field_name] = self._get_message_structure_recursive(nested_msg_class)
+                        structure[field_name] = self._get_message_structure_recursive(
+                            nested_msg_class, processed_types, depth + 1
+                        )
                     else:
                         structure[field_name] = field_type['type']
+
         return structure
 
     def _parse_field_type(self, field_type_str):
         field_info = {'type': None, 'is_array': False}
         if field_type_str.startswith('sequence<'):
             field_info['is_array'] = True
-            element_type = field_type_str[9:-1]  # Extract type inside 'sequence<>'
-            field_info['type'] = element_type
+            element_type = field_type_str[9:-1]
+            field_info['type'] = self.normalize_message_type(element_type)
+        elif '[' in field_type_str and field_type_str.endswith(']'):
+            field_info['is_array'] = True
+            element_type = field_type_str.split('[')[0]
+            field_info['type'] = self.normalize_message_type(element_type)
         else:
-            field_info['type'] = field_type_str
+            field_info['type'] = self.normalize_message_type(field_type_str)
         return field_info
 
     def _is_primitive_type(self, field_type):
         primitive_types = {
-            'bool', 'byte', 'char', 'float32', 'float64', 'int8', 'uint8',
-            'int16', 'uint16', 'int32', 'uint32', 'int64', 'uint64', 'string', 'wstring'
+            'bool', 'boolean', 'byte', 'char',
+            'float32', 'float64', 'float', 'double',
+            'int8', 'uint8', 'int16', 'uint16',
+            'int32', 'uint32', 'int64', 'uint64',
+            'int', 'string', 'wstring'
         }
         return field_type in primitive_types
-
     # END OF: Get nested message fields
 
     def start_dynamic_notification_listener(self, callback_function):
