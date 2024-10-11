@@ -15,6 +15,4 @@ def signal_handler(sig, frame):
 signal.signal(signal.SIGINT, signal_handler)
 
 if __name__ == "__main__":
-    from .api.web.messages_api import start_ros2_subscription
-    start_ros2_subscription()
     socketio.run(app, debug=True, host='0.0.0.0', port=5000)

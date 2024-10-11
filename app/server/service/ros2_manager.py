@@ -539,47 +539,6 @@ class ROS2Manager:
         }
         return field_type in primitive_types
     # END OF: Get nested message fields
-
-    def start_dynamic_notification_listener(self, callback_function):
-        
-        if self.subscription_created:
-            print("Subscripction already created")
-            return
-
-        
-        notification_type = get_message('notification_msgs/msg/Notification')
-        if notification_type is None:
-            raise ImportError("Can't load message type: 'notification_msgs/msg/Notification'")
-
-        def notification_callback(msg):
-            notification_data = {
-                'source': msg.source,
-                'severity': self.severity_to_string(msg.severity),
-                'info': msg.info,
-            }
-            callback_function(notification_data)
-
-        self.notification_subscriber = self.subscriber_node.create_subscription(
-            notification_type,
-            'notifications',
-            notification_callback,
-            QoSProfile(depth=10)
-        )
-
-        self.subscription_created = True
-        threading.Thread(target=self.spin_subscriber, daemon=True).start()
-    
-    def spin_subscriber(self):
-        while rclpy.ok():
-            rclpy.spin_once(self.subscriber_node, timeout_sec=1.0)
-
-    def severity_to_string(self, severity):
-        severity_map = {
-            0: 'NORMAL',
-            1: 'WARNING',
-            2: 'ERROR'
-        }
-        return severity_map.get(severity, 'UNKNOWN')
        
     def shutdown(self):
         rclpy.shutdown()

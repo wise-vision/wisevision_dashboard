@@ -388,11 +388,4 @@ def get_message_structure(message_type):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     
-def start_ros2_subscription():
-    from app.server import socketio
-    def push_notification_callback(notification_data):
-        socketio.emit('new_notification', notification_data)
-        print('New notification:', notification_data)
-
-    ros2_manager.start_dynamic_notification_listener(push_notification_callback)
 
