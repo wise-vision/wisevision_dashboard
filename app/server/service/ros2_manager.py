@@ -12,7 +12,8 @@ from rclpy.qos import QoSProfile
 import threading
 from collections import OrderedDict
 from rosidl_runtime_py import message_to_ordereddict
-
+import json
+import array
 
 class ROS2Manager:
     def __init__(self):
@@ -40,8 +41,43 @@ class ROS2Manager:
     
     def replace_percent_with_slash(self, topic_name):
         return topic_name.replace('%', '/')
+    
+    def serialize_ros_message_sub(self, msg):
+        result = {}
+        for field_name, field_type in msg.get_fields_and_field_types().items():
+            value = getattr(msg, field_name)
 
-    def get_topic_message(self, topic_name, topic_type):  # get_new_topic_message from ros2 topic 
+            if hasattr(value, 'get_fields_and_field_types'):
+                result[field_name] = self.serialize_ros_message_sub(value)
+            elif isinstance(value, list):
+                serialized_list = []
+                for item in value:
+                    if hasattr(item, 'get_fields_and_field_types'):
+                        serialized_list.append(self.serialize_ros_message_sub(item))
+                    elif isinstance(item, (array.array, tuple)):
+                        serialized_list.append(list(item))
+                    else:
+                        serialized_list.append(item)
+                result[field_name] = serialized_list
+            elif isinstance(value, (array.array, tuple)):
+                result[field_name] = list(value)
+            elif isinstance(value, (bytes, bytearray)):
+                result[field_name] = value.decode('utf-8', errors='ignore')
+            elif isinstance(value, (int, float, str, bool, type(None))):
+                result[field_name] = value
+            elif isinstance(value, dict):
+                serialized_dict = {}
+                for k, v in value.items():
+                    serialized_dict[k] = self.serialize_ros_message_sub(v) if hasattr(v, 'get_fields_and_field_types') else v
+                result[field_name] = serialized_dict
+            else:
+                print(f"Unsupported type for JSON serialization: {field_name} of type {type(value)}")
+                result[field_name] = str(value)
+
+        return result
+
+    
+    def get_topic_message(self, topic_name, topic_type):
         msg_type = get_message(topic_type)
         topic_name = self.replace_percent_with_slash(topic_name)
         if not msg_type:
@@ -61,8 +97,10 @@ class ROS2Manager:
             while rclpy.ok() and self.node.get_clock().now().to_msg().sec < end_time:
                 rclpy.spin_once(self.node, timeout_sec=1)
                 if message_received is not None:
-                    return str(message_received)
-            return "No message arrived for 5s"
+                    # Serializacja wiadomości do słownika
+                    serialized_message = self.serialize_ros_message_sub(message_received)
+                    return serialized_message
+            return {"error": "No message arrived for 5s"}
         finally:
             self.node.destroy_subscription(subscription)
 
@@ -437,6 +475,7 @@ class ROS2Manager:
                     'timestamps': [serialize_ros_message(timestamp) for timestamp in response.timestamps],
                     'messages': [serialize_ros_message(msg) for msg in messages]
                 }
+
                 return serialized_response
             except Exception as e:
                 raise Exception(f"Message deserialization error:” {e}")
