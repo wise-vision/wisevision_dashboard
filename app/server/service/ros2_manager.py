@@ -14,6 +14,7 @@ from collections import OrderedDict
 from rosidl_runtime_py import message_to_ordereddict
 import json
 import array
+import numpy as np
 
 class ROS2Manager:
     def __init__(self):
@@ -42,6 +43,7 @@ class ROS2Manager:
     def replace_percent_with_slash(self, topic_name):
         return topic_name.replace('%', '/')
     
+    
     def serialize_ros_message_sub(self, msg):
         result = {}
         for field_name, field_type in msg.get_fields_and_field_types().items():
@@ -61,6 +63,8 @@ class ROS2Manager:
                 result[field_name] = serialized_list
             elif isinstance(value, (array.array, tuple)):
                 result[field_name] = list(value)
+            elif isinstance(value, np.ndarray):  # Handle numpy arrays
+                result[field_name] = value.tolist()
             elif isinstance(value, (bytes, bytearray)):
                 result[field_name] = value.decode('utf-8', errors='ignore')
             elif isinstance(value, (int, float, str, bool, type(None))):
@@ -446,6 +450,7 @@ class ROS2Manager:
                     message = deserialize_message(message_data, MessageType())
                     messages.append(message)
 
+
                 def serialize_ros_message(msg):
                     result = {}
                     for field_name, field_type in msg.get_fields_and_field_types().items():
@@ -458,9 +463,15 @@ class ROS2Manager:
                             for item in value:
                                 if hasattr(item, 'get_fields_and_field_types'):
                                     serialized_list.append(serialize_ros_message(item))
+                                elif isinstance(item, (array.array, tuple)):
+                                    serialized_list.append(list(item))
                                 else:
                                     serialized_list.append(item)
                             result[field_name] = serialized_list
+                        elif isinstance(value, (array.array, tuple)):
+                            result[field_name] = list(value)
+                        elif isinstance(value, np.ndarray):  # Obsługa numpy.ndarray
+                            result[field_name] = value.tolist()
                         elif isinstance(value, (bytes, bytearray)):
                             result[field_name] = value.decode('utf-8', errors='ignore')
                         elif isinstance(value, (int, float, str, bool)):
@@ -470,7 +481,6 @@ class ROS2Manager:
                             result[field_name] = str(value)
 
                     return result
-
                 serialized_response = {
                     'timestamps': [serialize_ros_message(timestamp) for timestamp in response.timestamps],
                     'messages': [serialize_ros_message(msg) for msg in messages]
