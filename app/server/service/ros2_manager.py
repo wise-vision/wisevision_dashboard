@@ -16,6 +16,28 @@ import json
 import array
 import numpy as np
 
+def ros_message_to_dict(msg):
+    """
+    Rekurencyjnie konwertuje wiadomość ROS2 na słownik i usuwa prefiksy `_` z nazw pól.
+    """
+    if not hasattr(msg, '__slots__'):
+        return msg  # Zakładamy, że nie jest to obiekt ROS2, więc zwracamy bez zmian
+
+    result = {}
+    for field_name in msg.__slots__:
+        clean_field_name = field_name.lstrip('_')  # Usunięcie prefiksu `_`
+        value = getattr(msg, field_name)
+
+        # Jeśli wartość jest kolekcją (np. lista lub tuple), rekurencyjnie przetwarzaj każdy element
+        if isinstance(value, (list, tuple)):
+            result[clean_field_name] = [ros_message_to_dict(v) for v in value]
+        # Jeśli wartość jest obiektem ROS2, wywołaj rekursywnie
+        elif hasattr(value, '__slots__'):
+            result[clean_field_name] = ros_message_to_dict(value)
+        else:
+            result[clean_field_name] = value
+    return result
+
 class ROS2Manager:
     def __init__(self):
         rclpy.init()
@@ -107,7 +129,7 @@ class ROS2Manager:
             return {"error": "No message arrived for 5s"}
         finally:
             self.node.destroy_subscription(subscription)
-
+    # Automatic Action services
     def call_automatic_action_service(self, params):
         service_type = get_service('lora_msgs/srv/AutomaticAction')
         if not service_type:
@@ -203,10 +225,67 @@ class ROS2Manager:
         response = future.result()
 
         if response:
-            return response.available_topics
+            return [ros_message_to_dict(topic) for topic in response.available_topics_with_parameters_and_time]
         else:
             return []
+    def call_available_topics_combined_service(self):
+        service_type = get_service('lora_msgs/srv/AvailableTopicsCombined')
+        if not service_type:
+            raise ImportError("Service type not found for 'AvailableTopicsCombined'")
+
+        client = self.node.create_client(service_type, '/available_topics_combined')
+        while not client.wait_for_service(timeout_sec=1.0):
+            if not rclpy.ok():
+                raise Exception("Interrupted while waiting for the service. ROS shutdown.")
+
+        request = service_type.Request()
+
+        future = client.call_async(request)
+        rclpy.spin_until_future_complete(self.node, future)
+        response = future.result()
+
+        if response:
+            return [ros_message_to_dict(topic) for topic in response.available_combined_topics_with_parameters_and_time]
+        else:
+            return []
+        
+    def call_change_automatic_action_service(self, params):
+        service_type = get_service('lora_msgs/srv/ChangeAutomaticAction')
+        if not service_type:
+            raise ImportError("Service type not found for 'ChangeAutomaticAction'")
+
+        client = self.node.create_client(service_type, '/change_automatic_action')
+        while not client.wait_for_service(timeout_sec=1.0):
+            if not rclpy.ok():
+                raise Exception("Interrupted while waiting for the service. ROS shutdown.")
+
+        request = service_type.Request(**params)
+
+        future = client.call_async(request)
+        rclpy.spin_until_future_complete(self.node, future)
+        response = future.result()
+
+        return response.success if response else False
     
+    def call_change_automatic_action_combined_service(self, params):
+        service_type = get_service('lora_msgs/srv/ChangeAutomaticActionCombined')
+        if not service_type:
+            raise ImportError("Service type not found for 'ChangeAutomaticActionCombined'")
+
+        client = self.node.create_client(service_type, '/change_combined_automatic_action')
+        while not client.wait_for_service(timeout_sec=1.0):
+            if not rclpy.ok():
+                raise Exception("Interrupted while waiting for the service. ROS shutdown.")
+
+        request = service_type.Request(**params)
+
+        future = client.call_async(request)
+        rclpy.spin_until_future_complete(self.node, future)
+        response = future.result()
+
+        return response.success if response else False
+    
+    # END OF: Automatic Action services
     def call_get_messages_service(self, params):
         service_type = get_service('lora_msgs/srv/GetMessages')
         if not service_type:

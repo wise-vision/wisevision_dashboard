@@ -329,7 +329,39 @@ def delete_combined_automatic_action():
 def available_topics():
     try:
         available_topics = ros2_manager.call_available_topics_service()
-        return jsonify({'available_topics': available_topics}), 200
+        return jsonify({'available_topics_with_parameters_and_time': available_topics}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+@messages_api.route('/available_topics_combined', methods=['GET'])
+def available_topics_combined():
+    try:
+        available_topics = ros2_manager.call_available_topics_combined_service()
+        return jsonify({'available_combined_topics_with_parameters_and_time': available_topics}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+@messages_api.route('/change_automatic_action', methods=['POST'])
+def change_automatic_action():
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Request must be JSON'}), 400
+
+    try:
+        success = ros2_manager.call_change_automatic_action_service(data)
+        return jsonify({'success': success}), 200 if success else 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+@messages_api.route('/change_automatic_action_combined', methods=['POST'])
+def change_automatic_action_combined():
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Request must be JSON'}), 400
+
+    try:
+        success = ros2_manager.call_change_automatic_action_combined_service(data)
+        return jsonify({'success': success}), 200 if success else 500
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     
