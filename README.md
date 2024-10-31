@@ -144,7 +144,7 @@ curl -X POST http://localhost:5000/api/create_automatic_action -H "Content-Type:
     "value": "data",
     "trigger_val": "50.0",
     "trigger_type": "LessThan",
-    "pub_topic": "/topic_output",
+    "action_and_publisher_name": "/topic_output",
     "pub_message_type": "std_msgs/msg/String",
     "trigger_text": "test",
     "data_validity_ms": 5000
@@ -160,7 +160,7 @@ curl -X POST http://localhost:5000/api/create_automatic_action -H "Content-Type:
 curl -X POST http://localhost:5000/api/create_combined_automatic_action -H "Content-Type: application/json" -d '{
     "listen_topics": ["/topic1", "/topic2", "/topic3"],
     "logic_expression": "/topic1 and /topic2 or /topic3",
-    "pub_topic": "/combined_action"
+    "action_and_publisher_name": "/combined_action"
 }'
 {
   "success": false
@@ -194,10 +194,115 @@ curl -X POST http://localhost:5000/api/delete_combined_automatic_action -H "Cont
 ```bash
 curl -X GET http://localhost:5000/api/available_topics
 {
-  "available_topics": [
-    "/topic_input",
-    "/sensor_publisher"
+  "available_topics_with_parameters_and_time": [
+    {
+      "action_and_publisher_name": "/example_topic_1",
+      "data_validity_ms": 5000,
+      "date_and_time": {
+        "day": 0,
+        "hour": 0,
+        "minute": 0,
+        "month": 0,
+        "nanosecond": 0,
+        "second": 0,
+        "year": 0
+      },
+      "listen_message_type": "std_msgs/msg/Int32",
+      "listen_topic": "/topic_1",
+      "pub_message_type": "std_msgs/msg/String",
+      "publication_method": 0,
+      "trigger_text": "test",
+      "trigger_type": "LessThan",
+      "trigger_val": "69.0",
+      "value": "data"
+    },
+    {
+      "action_and_publisher_name": "/example_topic_2",
+      "data_validity_ms": 5000,
+      "date_and_time": {
+        "day": 0,
+        "hour": 0,
+        "minute": 0,
+        "month": 0,
+        "nanosecond": 0,
+        "second": 0,
+        "year": 0
+      },
+      "listen_message_type": "std_msgs/msg/Int32",
+      "listen_topic": "/topic_2",
+      "pub_message_type": "std_msgs/msg/String",
+      "publication_method": 0,
+      "trigger_text": "test",
+      "trigger_type": "LessThan",
+      "trigger_val": "50.0",
+      "value": "data"
+    }
   ]
+}
+```
+
+### api/available_topics_combined (automatic_action_execution)
+```bash
+curl -X GET http://localhost:5000/api/available_topics_combined
+{
+  "available_combined_topics_with_parameters_and_time": [
+    {
+      "action_and_publisher_name": "example_topic_test",
+      "date_and_time": {
+        "day": 0,
+        "hour": 0,
+        "minute": 0,
+        "month": 0,
+        "nanosecond": 0,
+        "second": 0,
+        "year": 0
+      },
+      "listen_topics": [
+        "/example_topic_1",
+        "/example_topic_2"
+      ],
+      "logic_expression": "/example_topic_1 and /example_topic_2",
+      "publication_method": 2,
+      "trigger_text": "Updated action triggered!"
+    }
+  ]
+}
+
+```
+
+### api/change_automatic_action (automatic_action_execution)
+```bash
+curl -X POST http://localhost:5000/api/change_automatic_action -H "Content-Type: application/json" -d '{
+    "action_and_publisher_name_to_change": "/example_topic_2",
+    "listen_topic": "/topic_2",
+    "listen_message_type": "std_msgs/msg/Int32",
+    "value": "data",
+    "trigger_val": "130.0",
+    "trigger_type": "LessThan",
+    "new_action_and_publisher_name": "/example_topic_2",
+    "pub_message_type": "std_msgs/msg/String",
+    "trigger_text": "test",
+    "data_validity_ms": 5000,
+    "publication_method": 0
+}'
+{
+  "success": true
+}
+
+```
+
+### api/change_automatic_action_combined (automatic_action_execution)
+```bash
+curl -X POST http://localhost:5000/api/change_automatic_action_combined -H "Content-Type: application/json" -d '{
+  "action_and_publisher_name_to_change": "example_topic_test",
+  "listen_topics": ["/example_topic_1", "/example_topic_2"],
+  "logic_expression": "/example_topic_1 and /example_topic_2",
+  "new_action_and_publisher_name": "example_topic_test",
+  "trigger_text": "Updated action triggered!",
+  "publication_method": 2
+}'
+{
+  "success": true
 }
 ```
 
