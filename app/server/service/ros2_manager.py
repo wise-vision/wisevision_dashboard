@@ -179,7 +179,7 @@ class ROS2Manager:
         request = service_type.Request(
             listen_topics=params.get('listen_topics', []),
             logic_expression=params.get('logic_expression', ''),
-            pub_topic=params.get('pub_topic', '')
+            action_and_publisher_name=params.get('action_and_publisher_name', '')
         )
 
         future = client.call_async(request)
