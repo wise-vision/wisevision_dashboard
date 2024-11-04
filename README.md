@@ -160,7 +160,9 @@ curl -X POST http://localhost:5000/api/create_automatic_action -H "Content-Type:
 curl -X POST http://localhost:5000/api/create_combined_automatic_action -H "Content-Type: application/json" -d '{
     "listen_topics": ["/topic1", "/topic2", "/topic3"],
     "logic_expression": "/topic1 and /topic2 or /topic3",
-    "action_and_publisher_name": "/combined_action"
+    "action_and_publisher_name": "/combined_action",
+    "trigger_text": "example_text",
+    "publication_method": 2
 }'
 {
   "success": false
