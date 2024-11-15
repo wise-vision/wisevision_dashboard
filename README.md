@@ -489,6 +489,56 @@ curl -X POST http://localhost:5000/api/delete_gps_device -H "Content-Type: appli
 ## api/topic_echo_gps_devices
 ```bash
 curl "http://localhost:5000/api/topic_echo_gps_devices"
+{
+  "message": {
+    "devices_data": [
+      {
+        "device_eui": {
+          "data": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "device_name": "Test_Device",
+        "is_moving": false,
+        "nav_value": {
+          "altitude": 100.0,
+          "header": {
+            "frame_id": "",
+            "stamp": {
+              "nanosec": 0,
+              "sec": 0
+            }
+          },
+          "latitude": 52.2297,
+          "longitude": 21.0122,
+          "position_covariance": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "position_covariance_type": 0,
+          "status": {
+            "service": 0,
+            "status": 0
+          }
+        }
+      }
+    ]
+  }
+}
 ```
 
 ## api/modify_gps_device
