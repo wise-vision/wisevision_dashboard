@@ -21,17 +21,15 @@ def ros_message_to_dict(msg):
     Rekurencyjnie konwertuje wiadomość ROS2 na słownik i usuwa prefiksy `_` z nazw pól.
     """
     if not hasattr(msg, '__slots__'):
-        return msg  # Zakładamy, że nie jest to obiekt ROS2, więc zwracamy bez zmian
+        return msg
 
     result = {}
     for field_name in msg.__slots__:
-        clean_field_name = field_name.lstrip('_')  # Usunięcie prefiksu `_`
+        clean_field_name = field_name.lstrip('_')
         value = getattr(msg, field_name)
 
-        # Jeśli wartość jest kolekcją (np. lista lub tuple), rekurencyjnie przetwarzaj każdy element
         if isinstance(value, (list, tuple)):
             result[clean_field_name] = [ros_message_to_dict(v) for v in value]
-        # Jeśli wartość jest obiektem ROS2, wywołaj rekursywnie
         elif hasattr(value, '__slots__'):
             result[clean_field_name] = ros_message_to_dict(value)
         else:
@@ -123,7 +121,6 @@ class ROS2Manager:
             while rclpy.ok() and self.node.get_clock().now().to_msg().sec < end_time:
                 rclpy.spin_once(self.node, timeout_sec=1)
                 if message_received is not None:
-                    # Serializacja wiadomości do słownika
                     serialized_message = self.serialize_ros_message_sub(message_received)
                     return serialized_message
             return {"error": "No message arrived for 5s"}
@@ -315,6 +312,32 @@ class ROS2Manager:
             return None
 
     # GPS Devices services
+    def get_gps_devices_message(self):
+        msg_type = get_message('wisevision_msgs/msg/GpsDevicesPublisher')
+        topic_name = self.replace_percent_with_slash('/gps_devices_data')
+        if not msg_type:
+            raise ImportError(f"Could not find message type {'wisevision_msgs/msg/GpsDevicesPublisher'}")
+
+        message_received = None
+
+        def callback(msg):
+            nonlocal message_received
+            message_received = msg
+
+        subscription = self.node.create_subscription(msg_type, topic_name, callback, QoSProfile(depth=1))
+
+        try:
+            timeout_sec = 60.0
+            end_time = self.node.get_clock().now().to_msg().sec + timeout_sec
+            while rclpy.ok() and self.node.get_clock().now().to_msg().sec < end_time:
+                rclpy.spin_once(self.node, timeout_sec=1)
+                if message_received is not None:
+                    serialized_message = self.serialize_ros_message_sub(message_received)
+                    return serialized_message
+            return {"error": "No message arrived for 60s"}
+        finally:
+            self.node.destroy_subscription(subscription)
+
     def call_add_gps_device_service(self, params):
         service_type = get_service('wisevision_msgs/srv/AddGpsDevice')
         if not service_type:
@@ -551,7 +574,7 @@ class ROS2Manager:
                             result[field_name] = serialized_list
                         elif isinstance(value, (array.array, tuple)):
                             result[field_name] = list(value)
-                        elif isinstance(value, np.ndarray):  # Obsługa numpy.ndarray
+                        elif isinstance(value, np.ndarray):
                             result[field_name] = value.tolist()
                         elif isinstance(value, (bytes, bytearray)):
                             result[field_name] = value.decode('utf-8', errors='ignore')

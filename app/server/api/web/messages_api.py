@@ -366,6 +366,11 @@ def change_automatic_action_combined():
         return jsonify({'error': str(e)}), 500
     
 # Gps Devices API
+@messages_api.route('/topic_echo_gps_devices', methods=['GET'])
+def echo_topic_gps_devices():
+    message = ros2_manager.get_gps_devices_message()
+    return jsonify({'message': message}), 200
+
 @messages_api.route('/add_gps_device', methods=['POST'])
 def add_gps_device():
     data = request.get_json()
