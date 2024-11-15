@@ -486,6 +486,11 @@ curl -X POST http://localhost:5000/api/delete_gps_device -H "Content-Type: appli
 }
 ```
 
+## api/topic_echo_gps_devices
+```bash
+curl "http://localhost:5000/api/topic_echo_gps_devices"
+```
+
 ## api/modify_gps_device
 ```bash
 curl -X POST http://localhost:5000/api/modify_gps_device -H "Content-Type: application/json" -d '{
