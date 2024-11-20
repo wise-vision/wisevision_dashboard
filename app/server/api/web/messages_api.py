@@ -520,6 +520,7 @@ def change_automatic_action():
     data = request.get_json()
     if not data:
         return jsonify({'error': 'Request must be JSON'}), 400
+
     if not is_valid_ros2_topic_name(data['action_and_publisher_name_to_change']):
         return jsonify({'error': f"Invalid action_and_publisher_name_to_change: {data['action_and_publisher_name_to_change']}"}), 400
     if not is_valid_ros2_topic_name(data['listen_topic']):
@@ -543,6 +544,7 @@ def change_automatic_action_combined():
     data = request.get_json()
     if not data:
         return jsonify({'error': 'Request must be JSON'}), 400
+
     if not is_valid_ros2_topic_name(data['action_and_publisher_name_to_change']):
         return jsonify({'error': f"Invalid action_and_publisher_name_to_change: {data['action_and_publisher_name_to_change']}"}), 400
 
@@ -573,6 +575,7 @@ def change_automatic_action_combined():
 
     if not is_valid_ros2_topic_name(data['new_action_and_publisher_name']):
         return jsonify({'error': f"Invalid new_action_and_publisher_name: {data['new_action_and_publisher_name']}"}), 400
+
 
     try:
         success = ros2_manager.call_change_automatic_action_combined_service(data)

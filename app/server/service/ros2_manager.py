@@ -8,6 +8,7 @@ from dateutil import parser
 from rosidl_runtime_py.utilities import get_message, get_service
 from rclpy.qos import QoSProfile
 from collections import OrderedDict
+
 import array
 import numpy as np
 
