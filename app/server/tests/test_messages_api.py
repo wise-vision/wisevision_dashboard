@@ -1,9 +1,10 @@
 import sys
-import os
+from pathlib import Path
 import unittest
 from unittest.mock import patch, MagicMock
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../')))
+project_root = Path(__file__).resolve().parents[3]
+sys.path.append(str(project_root))
 from app.server import create_app
 from app.server.service.ros2_manager import ROS2Manager
 
