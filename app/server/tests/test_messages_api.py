@@ -622,15 +622,14 @@ class TestMessagesAPI(unittest.TestCase):
         self.assertFalse(device['is_moving'])
     
     def test_message_type(self):
-        self.mock_ros2_manager.get_topic_message_type.return_value = {
-            "message_type": "notification_msgs/msg/Notification"
-        }
+        self.mock_ros2_manager.get_topic_message_type.return_value = "notification_msgs/msg/Notification"
 
-        response = self.client.get('/api/message_type/%notifications')
+        response = self.client.get('/api/message_type/%mytopic')
+        print(response.get_json())
         self.assertEqual(response.status_code, 200)
         data = response.get_json()
 
-        message_type = data.get('message_type').get('message_type')
+        message_type = data.get('message_type')
         self.assertEqual(message_type, 'notification_msgs/msg/Notification')
     
     def test_message_type_invalid_topic(self):

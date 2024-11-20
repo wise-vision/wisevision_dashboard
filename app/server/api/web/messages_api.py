@@ -672,7 +672,7 @@ def modify_gps_device():
 def get_message_type(topic_name):
     if not topic_name:
         return jsonify({'error': 'topic_name is required.'}), 400
-    if is_valid_ros2_topic_name_struct(topic_name):
+    if not is_valid_ros2_topic_name_struct(topic_name):
         return jsonify({'error': f"Invalid topic_name '{topic_name}'. Please follow ROS 2 naming conventions."}), 400
     try:
         message_type = ros2_manager.get_topic_message_type(topic_name)
