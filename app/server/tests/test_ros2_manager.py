@@ -1,14 +1,8 @@
 #!/usr/bin/env python3
 
-import json
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 from flask_testing import TestCase
-import sys
-import os
-
-# Ensure the root of your project is in the Python path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../')))
 
 from app.server import create_app
 from app.server.service.ros2_manager import ROS2Manager
