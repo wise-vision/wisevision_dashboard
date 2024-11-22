@@ -1,0 +1,42 @@
+
+.content {
+    width: 100%;
+    max-width: 1500px;
+    padding: 20px;
+}
+
+.dashboard-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    margin-top: -30px;
+}
+
+
+.gps-chart-container, .line-chart-container {
+    background-color: #f5f7fa;
+    border-radius: 20px;
+    box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+    padding: 10px;
+    text-align: start;
+    width: 720px;
+    height: 360px;
+    margin-top: 25px;
+    position: relative;
+}
+
+.pie-chart-container {
+    background-color: #f5f7fa;
+    border-radius: 20px;
+    box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+    padding: 10px;
+    text-align: start;
+    margin-top: 25px;
+}
+
+h3 {
+    margin-bottom: 5px;
+    font-size: 29px;
+    margin-top: -10px;
+    text-align: start;
+}
