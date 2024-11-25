@@ -1,0 +1,42 @@
+name: Check npm start for errors
+
+on:
+  pull_request:
+    branches:
+      - dev
+      - main
+      - 'stabilization/**'
+  schedule:
+    - cron: '0 22 * * *'
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          path: wisevision-dashboard
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+
+      - name: Install dependencies
+        run: |
+          cd wisevision-dashboard/app/client
+          npm install
+
+      - name: Run npm start and check for errors
+        run: |
+          cd wisevision-dashboard/app/client
+          npm start &
+          sleep 10    
+          kill $!
+          
+        continue-on-error: false

@@ -1,0 +1,174 @@
+
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000 !important;
+    backdrop-filter: blur(8px);
+    opacity: 0;
+    animation: fadeIn 0.4s forwards;
+}
+
+@keyframes fadeIn {
+    to {
+        opacity: 1;
+    }
+}
+
+
+.modal-content {
+    background-color: #fff;
+    padding: 30px;
+    border-radius: 16px;
+    width: 700px;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    animation: slideIn 0.4s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateY(-50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+
+.modal-actions {
+    margin-top: 20px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.delete-button {
+    background-color: #e74c3c;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 25px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.3s, transform 0.2s, box-shadow 0.2s;
+}
+
+.delete-button:hover {
+    background-color: #c0392b;
+    transform: translateY(-2px);
+}
+
+.cancel-button {
+    background-color: #3498db;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 25px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.3s, transform 0.2s, box-shadow 0.2s;
+}
+
+.cancel-button:hover {
+    background-color: #2980b9;
+    transform: translateY(-2px);
+}
+
+/* Mapa Leaflet */
+.leaflet-container {
+    z-index: 0 !important;
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+
+.leaflet-bar a {
+    box-shadow: none !important;
+    border: none !important;
+    background-color: #007bff !important;
+    color: #ffffff !important;
+    border-radius: 50% !important;
+}
+
+
+.leaflet-bar a:hover {
+    background-color: #0056b3 !important;
+    transform: scale(1.1);
+}
+
+
+.leaflet-bar a:active {
+    transform: scale(0.95);
+}
+
+
+
+.leaflet-control-attribution img {
+    display: none !important;
+}
+
+.leaflet-control-attribution {
+    z-index: 0 !important;
+}
+
+
+.gps-container {
+    margin-top: 20px;
+    width: 100%;
+    height: 315px;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    background-color: #f9f9f9;
+    z-index: 0;
+    transition: box-shadow 0.3s ease;
+}
+
+.gps-container:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+
+.button-group {
+    display: flex;
+    justify-content: flex-start;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.button-group.right {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 100;
+}
+
+.button-group button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 25px;
+    background: linear-gradient(135deg, #6ec1e4, #007bbf);
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.button-group button:hover {
+    background: linear-gradient(135deg, #5aa9cc, #0065a4);
+}
+.loading-spinner-modal img {
+    width: 20px;
+    height: 20px;
+}

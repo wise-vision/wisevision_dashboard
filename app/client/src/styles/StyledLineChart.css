@@ -1,0 +1,230 @@
+.chart-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+
+.value-display h2 {
+    font-size: 34px;
+    font-weight: bold;
+    margin-top: 5px;
+    margin-bottom: 15px;
+    color: #333;
+}
+
+
+.aggregation-buttons {
+    position: absolute;
+    top: -20px;
+    right: 10px;
+    display: flex;
+    gap: 10px;
+}
+
+.aggregation-buttons button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 25px;
+    background: linear-gradient(135deg, #6ec1e4, #007bbf);
+    color: #fff;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    outline: none;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.aggregation-buttons button:hover {
+    background: linear-gradient(135deg, #5aa9cc, #0065a4);
+}
+
+.aggregation-buttons button.active {
+    background: linear-gradient(135deg, #4a90e2, #006bb5);
+    box-shadow: 0px 0px 15px rgba(74, 144, 226, 0.6);
+    color: #fff;
+}
+
+.aggregation-buttons button:focus {
+    outline: none;
+    box-shadow: 0 0 5px rgba(74, 144, 226, 0.8);
+}
+
+
+.datepicker-container {
+    background-color: #ffffff;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    font-family: Arial, sans-serif;
+    max-width: 300px;
+}
+
+.datepicker-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.datepicker-header select {
+    padding: 5px;
+    border: 1px solid #e0e0e0;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+    font-size: 15px;
+    color: #333;
+    -moz-appearance: none;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.datepicker-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    text-align: center;
+    font-weight: 600;
+    color: #666;
+    margin-bottom: 8px;
+}
+
+.datepicker-dates {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px;
+}
+
+.datepicker-dates div {
+    padding: 8px 0;
+    border-radius: 50%;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    cursor: pointer;
+    color: #333;
+}
+
+.datepicker-dates div:hover {
+    background-color: #f0f4ff;
+    transform: translateY(-1px);
+}
+
+.datepicker-dates .selected {
+    background-color: #3a86ff;
+    color: white;
+}
+
+.datepicker-dates .selected:hover {
+    background-color: #3277e6;
+}
+
+.datepicker-dates .today {
+    border: 1px solid #3a86ff;
+    color: #3a86ff;
+    font-weight: bold;
+}
+
+/* Stylizacja godzin w kalendarzu */
+.datepicker-time {
+    margin-top: 15px;
+    font-size: 15px;
+    color: #333;
+}
+
+.datepicker-time select {
+    width: 100%;
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    background-color: #f9f9f9;
+    font-size: 15px;
+    color: #333;
+    box-sizing: border-box;
+}
+
+
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    animation: fadeIn 0.3s ease;
+}
+
+.settings-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    padding: 20px;
+    z-index: 1000;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    animation: fadeIn 0.3s ease;
+    width: 400px;
+    font-family: Arial, sans-serif;
+}
+
+.settings-modal form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.settings-modal label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.settings-modal input[type="number"],
+.settings-modal input[type="text"],
+.settings-modal .react-datepicker__input-container input {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    background-color: #f9f9f9;
+    font-size: 15px;
+    color: #333;
+    box-sizing: border-box;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.settings-modal input[type="number"]:focus,
+.settings-modal input[type="text"]:focus,
+.settings-modal .react-datepicker__input-container input:focus {
+    border-color: #3a86ff;
+    box-shadow: 0 0 0 3px rgba(58, 134, 255, 0.2);
+    outline: none;
+}
+
+.settings-modal button {
+    padding: 10px;
+    background-color: #5c81b8;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.settings-modal button:hover {
+    background-color: #4a6ea0;
+}
+
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}

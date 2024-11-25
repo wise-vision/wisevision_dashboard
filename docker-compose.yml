@@ -1,9 +1,10 @@
 version: '3.8'
+
 services:
   backend:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: . 
+      dockerfile: app/server/Dockerfile
       args:
         - GITHUB_TOKEN=${GITHUB_TOKEN}
     ports:
@@ -12,8 +13,16 @@ services:
     pid: "host"
     stdin_open: true
     tty: true
-    volumes:
-      - .:/usr/src/app
     environment:
       FLASK_ENV: debug
-  
+
+  client:
+    build:
+      context: ./app/client  
+      dockerfile: Dockerfile
+    ports:
+      - '3000:3000'
+    volumes:
+      - ./app/client:/app  
+    environment:
+      - CHOKIDAR_USEPOLLING=true

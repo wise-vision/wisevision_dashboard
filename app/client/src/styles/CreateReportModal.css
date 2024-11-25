@@ -1,0 +1,75 @@
+
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+
+.modal-content {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+
+    width: 100%;
+}
+
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group select {
+    width: 100%;
+    padding: 8px;
+}
+
+.form-group input {
+    margin: 5px 0;
+    width: 100%;
+    padding: 8px;
+}
+
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 20px;
+}
+
+
+.modal-actions button {
+    margin-left: 10px;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    color: white;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+
+.modal-actions button:first-child {
+    background-color: #007BFF;
+}
+
+.modal-actions button:first-child:hover {
+    background-color: #0056b3;
+}
+
+
+.modal-actions button:last-child {
+    background-color: #6c757d;
+}
+
+.modal-actions button:last-child:hover {
+    background-color: #5a6268;
+}

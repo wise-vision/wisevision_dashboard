@@ -1,0 +1,397 @@
+import React, { useState, useEffect } from 'react';
+import '../styles/CreateActionModal.css';
+
+const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
+    const [isClosing, setIsClosing] = useState(false);
+    const [actionType, setActionType] = useState(null); // 'action' or 'combined'
+
+    // State for single action
+    const [actionData, setActionData] = useState({
+        actionAndPublisherName: '',
+        listenTopic: '',
+        listenMessageType: '',
+        value: '',
+        triggerVal: '',
+        triggerType: 'LessThan',
+        pubMessageType: '',
+        triggerText: '',
+        dataValidityMs: ''
+    });
+
+    // State for combined action
+    const [numActions, setNumActions] = useState(2);
+    const [selectedActions, setSelectedActions] = useState([]);
+    const [availableActions, setAvailableActions] = useState([]);
+    const [combinedActionData, setCombinedActionData] = useState({
+        actionAndPublisherName: '',
+        logicExpression: '',
+        triggerText: ''
+    });
+
+    const [topics, setTopics] = useState([]);
+    const [messageStructure, setMessageStructure] = useState({});
+    const [fields, setFields] = useState([]);
+    const [message, setMessage] = useState('');
+
+    useEffect(() => {
+        const fetchTopics = async () => {
+            try {
+                const response = await fetch('http://localhost:5000/api/topics');
+                const data = await response.json();
+                setTopics(data);
+            } catch (error) {
+                console.error('Error fetching topics:', error);
+            }
+        };
+
+        fetchTopics();
+    }, []);
+
+    useEffect(() => {
+        const fetchMessageStructure = async () => {
+            if (actionData.listenTopic && actionData.listenMessageType) {
+                try {
+                    const response = await fetch(`http://localhost:5000/api/message_structure/${actionData.listenMessageType}`);
+                    const data = await response.json();
+                    setMessageStructure(data);
+                } catch (error) {
+                    console.error('Error fetching message structure:', error);
+                }
+            }
+        };
+
+        fetchMessageStructure();
+    }, [actionData.listenTopic, actionData.listenMessageType]);
+
+    useEffect(() => {
+        if (messageStructure) {
+            const availableFields = extractFields(messageStructure);
+            setFields(availableFields);
+        }
+    }, [messageStructure]);
+
+    useEffect(() => {
+        const fetchAvailableActions = async () => {
+            try {
+                const response = await fetch('http://localhost:5000/api/available_topics');
+                const data = await response.json();
+                setAvailableActions(data.available_topics_with_parameters_and_time);
+            } catch (error) {
+                console.error('Error fetching available actions:', error);
+            }
+        };
+
+        if (actionType === 'combined') {
+            fetchAvailableActions();
+        }
+    }, [actionType]);
+
+    const extractFields = (structure, parent = '') => {
+        let fields = [];
+        for (let key in structure) {
+            const fullPath = parent ? `${parent}.${key}` : key;
+            if (typeof structure[key] === 'object') {
+                if (Array.isArray(structure[key])) {
+                    fields.push(fullPath + '[]');
+                } else {
+                    fields = fields.concat(extractFields(structure[key], fullPath));
+                }
+            } else {
+                fields.push(fullPath);
+            }
+        }
+        return fields;
+    };
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setActionData((prev) => ({ ...prev, [name]: value }));
+    };
+
+    const handleCombinedChange = (e) => {
+        const { name, value } = e.target;
+        setCombinedActionData((prev) => ({ ...prev, [name]: value }));
+    };
+
+    const handleSelectedActionChange = (e, index) => {
+        const value = e.target.value;
+        setSelectedActions((prev) => {
+            const newSelectedActions = [...prev];
+            newSelectedActions[index] = value;
+            return newSelectedActions;
+        });
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+
+        const dataValidityMsAsNumber = parseInt(actionData.dataValidityMs);
+
+        try {
+            const response = await fetch('http://localhost:5000/api/create_automatic_action', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    listen_topic: actionData.listenTopic,
+                    listen_message_type: actionData.listenMessageType,
+                    value: actionData.value,
+                    trigger_val: actionData.triggerVal,
+                    trigger_type: actionData.triggerType,
+                    action_and_publisher_name: actionData.actionAndPublisherName,
+                    pub_message_type: actionData.pubMessageType,
+                    trigger_text: actionData.triggerText,
+                    data_validity_ms: dataValidityMsAsNumber
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                setMessage(`Action created successfully. Response: ${JSON.stringify(result)}`);
+                if (onActionCreated) {
+                    onActionCreated(actionData);
+                }
+
+                setTimeout(() => {
+                    handleCancel();
+                }, 5000);
+            } else {
+                setMessage(`Failed to create action: ${JSON.stringify(result)}`);
+            }
+        } catch (error) {
+            console.error('Error creating action:', error);
+            setMessage('An error occurred while creating the action.');
+        }
+    };
+
+    const handleCombinedSubmit = async (e) => {
+        e.preventDefault();
+
+        const data = {
+            listen_topics: selectedActions,
+            logic_expression: combinedActionData.logicExpression,
+            action_and_publisher_name: combinedActionData.actionAndPublisherName,
+            trigger_text: combinedActionData.triggerText,
+            publication_method: 2
+        };
+
+        try {
+            const response = await fetch('http://localhost:5000/api/create_combined_automatic_action', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+            console.log("API Response:", result); // Log the API response for debugging
+
+            if (result.success) {
+                setMessage(`Combined action created successfully. Response: ${JSON.stringify(result)}`);
+                if (onActionCreated) {
+                    onActionCreated(combinedActionData);
+                }
+
+                setTimeout(() => {
+                    handleCancel();
+                }, 5000);
+            } else {
+                setMessage(`Failed to create combined action. Response: ${JSON.stringify(result)}`); // Display error message without closing
+            }
+        } catch (error) {
+            console.error('Error creating combined action:', error);
+            setMessage('An error occurred while creating the combined action.');
+        }
+    };
+
+    const handleCancel = () => {
+        setIsClosing(true);
+        setTimeout(() => {
+            setIsClosing(false);
+            onClose();
+        }, 600);
+    };
+
+    if (!isOpen && !isClosing) return null;
+
+    if (!actionType) {
+        return (
+            <div className={`create-action-modal ${isClosing ? 'closing' : ''}`}>
+                <div className={`modal-content ${isClosing ? 'closing' : ''}`}>
+                    <button type="button" onClick={handleCancel} className="close-icon">&times;</button>
+                    <h2>Select Action Type</h2>
+                    <div className="modal-actions">
+                        <button onClick={() => setActionType('action')} className="select-button">Action</button>
+                        <button onClick={() => setActionType('combined')} className="select-button">Combined Action</button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (actionType === 'combined') {
+        return (
+            <div className={`create-action-modal ${isClosing ? 'closing' : ''}`}>
+                <div className={`modal-content ${isClosing ? 'closing' : ''}`}>
+                    <h2>Create Combined Action</h2>
+                    {message && <div className="message">{message}</div>}
+                    <form onSubmit={handleCombinedSubmit} className="new-action-form">
+                        <div className="form-group">
+                            <label>Number of Actions to Combine:</label>
+                            <select value={numActions} onChange={(e) => setNumActions(parseInt(e.target.value))}>
+                                <option value={2}>2</option>
+                                <option value={3}>3</option>
+                                <option value={4}>4</option>
+                            </select>
+                        </div>
+                        {[...Array(numActions)].map((_, index) => (
+                            <div className="form-group" key={index}>
+                                <label>Select Action {index + 1}:</label>
+                                <select
+                                    value={selectedActions[index] || ''}
+                                    onChange={(e) => handleSelectedActionChange(e, index)}
+                                    required
+                                >
+                                    <option value="">Select an Action</option>
+                                    {availableActions.map((action, idx) => (
+                                        <option key={idx} value={action.action_and_publisher_name}>
+                                            {action.action_and_publisher_name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        ))}
+                        <div className="form-group">
+                            <label>Logic Expression:</label>
+                            <input
+                                type="text"
+                                name="logicExpression"
+                                value={combinedActionData.logicExpression}
+                                onChange={handleCombinedChange}
+                                required
+                            />
+                            <div className="info-with-button">
+                                <small>Use the action names selected above in your logic expression (e.g., "Action1 or
+                                    Action2")</small>
+                            </div>
+                        </div>
+                        <div className="form-group">
+                            <label>Action and Publisher Name:</label>
+                            <input
+                                type="text"
+                                name="actionAndPublisherName"
+                                value={combinedActionData.actionAndPublisherName}
+                                onChange={handleCombinedChange}
+                                required
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label>Trigger Text:</label>
+                            <input
+                                type="text"
+                                name="triggerText"
+                                value={combinedActionData.triggerText}
+                                onChange={handleCombinedChange}
+                                required
+                            />
+                        </div>
+                        {/* Publication method is always 2*/}
+                        <div className="modal-actions">
+                            <button type="submit" className="add-button">Create</button>
+                            <button type="button" onClick={handleCancel} className="close-button">Cancel</button>
+                            <button type="button" onClick={() => setActionType(null)} className="back-button">Back</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        );
+    }
+
+    // Existing action creation form
+    return (
+        <div className={`create-action-modal ${isClosing ? 'closing' : ''}`}>
+            <div className={`modal-content ${isClosing ? 'closing' : ''}`}>
+                <h2>Create Action</h2>
+                {message && <div className="message">{message}</div>}
+                <form onSubmit={handleSubmit} className="new-action-form">
+                    <div className="form-group">
+                        <label>Action and Publisher Name:</label>
+                        <input
+                            type="text"
+                            name="actionAndPublisherName"
+                            value={actionData.actionAndPublisherName}
+                            onChange={handleChange}
+                            required
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label>Listen Topic:</label>
+                        <select name="listenTopic" value={actionData.listenTopic} onChange={handleChange} required>
+                            <option value="">Select a Topic</option>
+                            {topics.map((topic) => (
+                                <option key={topic.name} value={topic.name}>
+                                    {topic.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="form-group">
+                        <label>Listen Message Type:</label>
+                        <input
+                            type="text"
+                            name="listenMessageType"
+                            value={actionData.listenMessageType}
+                            onChange={handleChange}
+                            required
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label>Field to Read:</label>
+                        <select name="value" value={actionData.value} onChange={handleChange} required>
+                            <option value="">Select a Field</option>
+                            {fields.map((field, index) => (
+                                <option key={index} value={field}>
+                                    {field}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="form-group">
+                        <label>Trigger Value:</label>
+                        <input type="text" name="triggerVal" value={actionData.triggerVal} onChange={handleChange} required />
+                    </div>
+                    <div className="form-group">
+                        <label>Trigger Type:</label>
+                        <select name="triggerType" value={actionData.triggerType} onChange={handleChange}>
+                            <option value="LessThan">Less Than</option>
+                            <option value="GreaterThan">Greater Than</option>
+                            <option value="EqualTo">Equal To</option>
+                        </select>
+                    </div>
+                    <div className="form-group">
+                        <label>Publish Message Type:</label>
+                        <input type="text" name="pubMessageType" value={actionData.pubMessageType} onChange={handleChange} required />
+                    </div>
+                    <div className="form-group">
+                        <label>Publish Message Value (Trigger Text):</label>
+                        <input type="text" name="triggerText" value={actionData.triggerText} onChange={handleChange} required />
+                    </div>
+                    <div className="form-group">
+                        <label>Data Validity (ms):</label>
+                        <input type="number" name="dataValidityMs" value={actionData.dataValidityMs} onChange={handleChange} required />
+                    </div>
+                    <div className="modal-actions">
+                        <button type="submit" className="add-button">Create</button>
+                        <button type="button" onClick={handleCancel} className="close-button">Cancel</button>
+                        <button type="button" onClick={() => setActionType(null)} className="back-button">Back</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+export default CreateActionModal;
