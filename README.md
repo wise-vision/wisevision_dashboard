@@ -147,7 +147,8 @@ curl -X POST http://localhost:5000/api/create_automatic_action -H "Content-Type:
     "action_and_publisher_name": "/topic_output",
     "pub_message_type": "std_msgs/msg/String",
     "trigger_text": "test",
-    "data_validity_ms": 5000
+    "data_validity_ms": 5000,
+    "publication_method": 0
 }'
 {
   "success": true
