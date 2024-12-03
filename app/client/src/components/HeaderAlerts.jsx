@@ -36,13 +36,14 @@ const HeaderAlerts = () => {
     const [soundEnabled, setSoundEnabled] = useState(true); // Sound state
 
     const soundEnabledRef = useRef(soundEnabled);
-
+    const timeoutRef = useRef(null);
+    const isFetchingRef = useRef(false); // Flaga wskazująca, czy aktualnie trwają zapytanie
 
     useEffect(() => {
         soundEnabledRef.current = soundEnabled;
     }, [soundEnabled]);
 
-    // Initialize state on first render
+
     useEffect(() => {
         const storedNotifications = JSON.parse(localStorage.getItem('notifications')) || [];
         const storedUnread = JSON.parse(localStorage.getItem('unreadNotifications')) || {
@@ -54,20 +55,27 @@ const HeaderAlerts = () => {
         setSoundEnabled(!savedMuteState);
         setNotifications(storedNotifications);
         setUnreadNotifications(storedUnread);
-    }, []); // Empty dependency array, runs only once
+    }, []);
 
     // Function to fetch data from API
     const fetchNotifications = useCallback(async () => {
+        if (isFetchingRef.current) {
+            return;
+        }
+
+        isFetchingRef.current = true;
+
         try {
             const response = await fetch("http://localhost:5000/api/topic_echo/notifications?type=notification_msgs/msg/Notification&number_of_msgs=1");
             const data = await response.json();
 
-
             if (!data || !data.message || !data.message.info) {
+                scheduleNextFetch();
+                isFetchingRef.current = false;
                 return;
             }
 
-            // Extract fields from message object
+
             const { source, severity, info } = data.message;
 
             const severityMap = {
@@ -111,24 +119,33 @@ const HeaderAlerts = () => {
                 return updatedUnread;
             });
 
-            // Play notification sound if enabled
+
             if (soundEnabledRef.current) {
                 const audio = new Audio(notificationSound);
                 audio.play();
             }
-
         } catch (error) {
             console.error('Error fetching notifications:', error);
+        } finally {
+            scheduleNextFetch();
+            isFetchingRef.current = false;
         }
     }, []);
 
+    const scheduleNextFetch = () => {
+        timeoutRef.current = setTimeout(() => {
+            fetchNotifications();
+        }, 5000);
+    };
 
     useEffect(() => {
-        fetchNotifications(); // Fetch notifications when component mounts
+        fetchNotifications();
 
-        const interval = setInterval(fetchNotifications, 5000); // Set interval
-
-        return () => clearInterval(interval);
+        return () => {
+            if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+            }
+        };
     }, [fetchNotifications]);
 
     const handleNotificationClick = (type) => {
@@ -195,7 +212,6 @@ const HeaderAlerts = () => {
         storedUnread[type] = 0;
         localStorage.setItem('unreadNotifications', JSON.stringify(storedUnread));
     };
-
 
     const handleSettingsChange = (settings) => {
         if (settings.soundEnabled !== undefined) {

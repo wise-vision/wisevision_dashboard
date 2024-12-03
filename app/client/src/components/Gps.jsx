@@ -472,7 +472,6 @@ export default function Gps({ chartData }) {
                                         onChange={(e) => setDeviceName(e.target.value)}
                                     />
                                 </div>
-                                {/* Device EUI is not editable */}
                                 <div className="form-group">
                                     <label>Device EUI</label>
                                     <input

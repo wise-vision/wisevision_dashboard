@@ -55,7 +55,7 @@
     to { transform: scale(0.9); }
 }
 
-/* Klasy zamykania */
+
 .create-action-modal.closing {
     animation: fadeOut 0.6s ease forwards;
 }
@@ -105,7 +105,7 @@
     color: #4a4a4a;
 }
 
-/* Inputy, selecty w formularzu */
+
 .create-action-modal .form-group input[type="text"],
 .create-action-modal .form-group input[type="number"],
 .create-action-modal .form-group select {

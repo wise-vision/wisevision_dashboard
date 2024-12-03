@@ -3,7 +3,6 @@ import { Pie } from 'react-chartjs-2';
 import 'chart.js/auto';
 
 const StyledPieChart = ({ data }) => {
-    // Suppress unused state warning for displayedValue
     const [displayedValue, setDisplayedValue] = useState('Hover to see value');
 
     const total = data.values.reduce((acc, val) => acc + val, 0);

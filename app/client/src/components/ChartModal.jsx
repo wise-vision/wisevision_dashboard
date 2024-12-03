@@ -5,7 +5,7 @@ import penIcon from '../assets/images/pen.png';
 const unitsSI = ['°C', 'kW', 'V', 'A', 'W', 'Hz', 'Pa'];
 
 const ChartModal = ({ onClose, onAddChart }) => {
-    const [chartType, setChartType] = useState('line');
+    const [chartType, setChartType] = useState('');
     const [chartLabel, setChartLabel] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
     const [topics, setTopics] = useState([]);
@@ -23,13 +23,6 @@ const ChartModal = ({ onClose, onAddChart }) => {
     const [selectedUnitManualInput, setSelectedUnitManualInput] = useState(false);
     const [selectedPathManualInput, setSelectedPathManualInput] = useState(false);
 
-    // GPS device state variables
-    const [deviceName, setDeviceName] = useState('');
-    const [deviceEUI, setDeviceEUI] = useState('');
-    const [latitude, setLatitude] = useState('');
-    const [longitude, setLongitude] = useState('');
-    const [altitude, setAltitude] = useState('');
-
     // Fetch topics from the API
     useEffect(() => {
         const fetchTopics = async () => {
@@ -37,7 +30,7 @@ const ChartModal = ({ onClose, onAddChart }) => {
                 const response = await fetch('http://localhost:5000/api/topics');
                 const result = await response.json();
                 setTopics(result);
-                if (result[0]) {
+                if (result[0] && chartType !== 'gps') {
                     setSelectedTopic({
                         name: result[0].name,
                         type: result[0].type,
@@ -48,7 +41,7 @@ const ChartModal = ({ onClose, onAddChart }) => {
             }
         };
         fetchTopics();
-    }, []);
+    }, [chartType]);
 
     // Fetch message structure and available numeric paths
     useEffect(() => {
@@ -84,7 +77,7 @@ const ChartModal = ({ onClose, onAddChart }) => {
                                     'double',
                                 ].includes(value)
                             ) {
-                                paths.push(path); // Collect numeric paths
+                                paths.push(path);
                             }
                         }
                     };
@@ -101,84 +94,53 @@ const ChartModal = ({ onClose, onAddChart }) => {
         }
     }, [step, selectedTopic, chartType]);
 
-    const handleNext = () => {
-        if (!chartLabel.trim()) {
-            setErrorMessage('Please provide a chart name.');
-            return;
-        }
-
-        if (chartType !== 'gps' && !selectedUnit) {
-            setErrorMessage('Please select a unit.');
-            return;
-        }
-
+    const handleChartTypeSelection = (type) => {
+        setChartType(type);
+        setStep(2);
         setErrorMessage('');
-        setStep(2); // Proceed to next step
+        // Reset fields when chart type changes
+        setChartLabel('');
+        setSelectedUnit('');
+        setSelectedTopic({
+            name: '',
+            type: '',
+        });
+        setSelectedPath('');
     };
 
     const handleCreate = () => {
         if (chartType === 'gps') {
-            // Validate GPS fields
-            if (
-                !deviceName.trim() ||
-                !deviceEUI.trim() ||
-                latitude === '' || // Checking for empty string to allow zero values
-                longitude === '' ||
-                altitude === ''
-            ) {
-                setErrorMessage('Please fill in all the GPS device information.');
+            // Validate map name
+            if (!chartLabel.trim()) {
+                setErrorMessage('Please provide a map name.');
                 return;
             }
 
-
-            const data = {
-                device_name: deviceName,
-                device_eui: {
-                    data: deviceEUI.split(',').map((num) => parseInt(num.trim(), 10)),
-                },
-                nav_value: {
-                    latitude: parseFloat(latitude),
-                    longitude: parseFloat(longitude),
-                    altitude: parseFloat(altitude),
-                },
-                is_moving: false,
+            const newChart = {
+                id: Date.now(),
+                type: chartType,
+                label: chartLabel,
             };
 
-            // Send POST request
-            fetch('http://localhost:5000/api/add_gps_device', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-                body: JSON.stringify(data),
-            })
-                .then((response) => {
-                    if (!response.ok) {
-                        console.error('Response status:', response.status);
-                        console.error('Response text:', response.statusText);
-                        throw new Error('Failed to add GPS device');
-                    }
-                    return response.json();
-                })
-                .then((result) => {
-                    console.log('GPS device added:', result);
-
-                    const newChart = {
-                        id: Date.now(),
-                        type: chartType,
-                        label: chartLabel,
-                        deviceData: data,
-                    };
-
-                    onAddChart(newChart);
-                    onClose();
-                })
-                .catch((error) => {
-                    console.error('Error adding GPS device:', error);
-                    setErrorMessage('Failed to add GPS device. Please try again.');
-                });
+            onAddChart(newChart);
+            onClose();
         } else {
+            // Validate fields for other chart types
+            if (!chartLabel.trim()) {
+                setErrorMessage('Please provide a chart name.');
+                return;
+            }
+
+            if (!selectedUnit) {
+                setErrorMessage('Please select a unit.');
+                return;
+            }
+
+            if (!selectedTopic.name || !selectedTopic.type || !selectedPath) {
+                setErrorMessage('Please select a topic and path.');
+                return;
+            }
+
             const newChart = {
                 id: Date.now(),
                 type: chartType,
@@ -193,26 +155,91 @@ const ChartModal = ({ onClose, onAddChart }) => {
         }
     };
 
+    const handleNext = () => {
+        if (step === 2) {
+            handleCreate();
+        }
+    };
+
+    const handleBack = () => {
+        if (step === 2) {
+            setStep(1);
+            setChartType('');
+            setChartLabel('');
+            setSelectedUnit('');
+            setSelectedTopic({
+                name: '',
+                type: '',
+            });
+            setSelectedPath('');
+            setErrorMessage('');
+        }
+    };
+
     return (
         <div className="modal">
             <div className="modal-content">
-                <h2>Create a New Chart</h2>
+                {/* Dynamic Modal Title */}
+                <h2>
+                    {step === 1
+                        ? 'Create a New Chart'
+                        : chartType === 'gps'
+                            ? 'Add Map'
+                            : 'Create a New Chart'}
+                </h2>
+
                 {step === 1 && (
-                    <>
+                    <div className="step step-1">
                         <div className="form-group">
-                            <label htmlFor="chartType">Chart Type</label>
-                            <select
-                                id="chartType"
-                                value={chartType}
-                                onChange={(e) => setChartType(e.target.value)}
-                            >
-                                <option value="line">Line Chart</option>
-                                <option value="gps">GPS</option>
-                            </select>
+                            <label></label>
+                            <div className="chart-type-options">
+                                <button
+                                    type="button"
+                                    className={`chart-type-button ${chartType === 'line' ? 'selected' : ''}`}
+                                    onClick={() => handleChartTypeSelection('line')}
+                                >
+                                    Line Chart
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`chart-type-button ${chartType === 'gps' ? 'selected' : ''}`}
+                                    onClick={() => handleChartTypeSelection('gps')}
+                                >
+                                    GPS Map
+                                </button>
+                            </div>
                         </div>
 
+                        {errorMessage && <p className="error-message">{errorMessage}</p>}
+
+                        <div className="modal-actions">
+                            <button onClick={onClose} className="cancel-button">
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => {
+                                    if (chartType) {
+                                        setStep(2);
+                                        setErrorMessage('');
+                                    } else {
+                                        setErrorMessage('Please select a chart type.');
+                                    }
+                                }}
+                                className="next-button"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {step === 2 && (
+                    <>
                         <div className="form-group">
-                            <label htmlFor="chartLabel">Chart Name</label>
+                            {/* Dynamic Label for Chart Name / Map Name */}
+                            <label htmlFor="chartLabel">
+                                {chartType === 'gps' ? 'Map Name' : 'Chart Name'}
+                            </label>
                             <input
                                 id="chartLabel"
                                 type="text"
@@ -252,6 +279,9 @@ const ChartModal = ({ onClose, onAddChart }) => {
                                                     });
                                                 }}
                                             >
+                                                <option value="" disabled>
+                                                    Select topic
+                                                </option>
                                                 {topics.map((topic) => (
                                                     <option key={topic.name} value={topic.name}>
                                                         {topic.name}
@@ -259,16 +289,15 @@ const ChartModal = ({ onClose, onAddChart }) => {
                                                 ))}
                                             </select>
                                         )}
-                                        <img
-                                            src={penIcon}
+                                        <button
+                                            type="button"
                                             className="icon"
-                                            alt="Edit"
                                             onClick={() =>
-                                                setSelectedTopicManualInput(
-                                                    !selectedTopicManualInput
-                                                )
+                                                setSelectedTopicManualInput(!selectedTopicManualInput)
                                             }
-                                        />
+                                        >
+                                            &#9998;
+                                        </button>
                                     </div>
                                 </div>
 
@@ -298,146 +327,70 @@ const ChartModal = ({ onClose, onAddChart }) => {
                                                 ))}
                                             </select>
                                         )}
-                                        <img
-                                            src={penIcon}
+                                        <button
+                                            type="button"
                                             className="icon"
-                                            alt="Edit"
                                             onClick={() =>
-                                                setSelectedUnitManualInput(
-                                                    !selectedUnitManualInput
-                                                )
+                                                setSelectedUnitManualInput(!selectedUnitManualInput)
                                             }
-                                        />
+                                        >
+                                            &#9998;
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="form-group">
+                                    <label htmlFor="nestedMessage">Select Nested Message Path</label>
+                                    <div className="select-with-icon">
+                                        {selectedPathManualInput ? (
+                                            <input
+                                                id="nestedMessageInput"
+                                                type="text"
+                                                value={selectedPath}
+                                                onChange={(e) => setSelectedPath(e.target.value)}
+                                            />
+                                        ) : (
+                                            <select
+                                                id="nestedMessage"
+                                                value={selectedPath}
+                                                onChange={(e) => setSelectedPath(e.target.value)}
+                                            >
+                                                <option value="" disabled>
+                                                    Select path
+                                                </option>
+                                                {nestedPaths.map((path) => (
+                                                    <option key={path} value={path}>
+                                                        {path}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        )}
+                                        <button
+                                            type="button"
+                                            className="icon"
+                                            onClick={() =>
+                                                setSelectedPathManualInput(!selectedPathManualInput)
+                                            }
+                                        >
+                                            &#9998;
+                                        </button>
                                     </div>
                                 </div>
                             </>
                         )}
 
-                        {errorMessage && <p style={{ color: 'red' }}>{errorMessage}</p>}
+                        {errorMessage && <p className="error-message">{errorMessage}</p>}
 
                         <div className="modal-actions">
-                            <button onClick={handleNext}>Next</button>
-                            <button onClick={onClose}>Cancel</button>
-                        </div>
-                    </>
-                )}
-
-                {step === 2 && chartType !== 'gps' && (
-                    <>
-                        <div className="form-group">
-                            <label htmlFor="nestedMessage">
-                                Select Nested Message Path
-                            </label>
-                            <div className="select-with-icon">
-                                {selectedPathManualInput ? (
-                                    <input
-                                        id="nestedMessageInput"
-                                        type="text"
-                                        value={selectedPath}
-                                        onChange={(e) => setSelectedPath(e.target.value)}
-                                    />
-                                ) : (
-                                    <select
-                                        id="nestedMessage"
-                                        value={selectedPath}
-                                        onChange={(e) => setSelectedPath(e.target.value)}
-                                    >
-                                        {nestedPaths.map((path) => (
-                                            <option key={path} value={path}>
-                                                {path}
-                                            </option>
-                                        ))}
-                                    </select>
-                                )}
-                                <img
-                                    src={penIcon}
-                                    className="icon"
-                                    alt="Edit"
-                                    onClick={() =>
-                                        setSelectedPathManualInput(!selectedPathManualInput)
-                                    }
-                                />
-                            </div>
-                        </div>
-
-                        {errorMessage && <p style={{ color: 'red' }}>{errorMessage}</p>}
-
-                        <div className="modal-actions">
-                            <button onClick={handleCreate}>Create Chart</button>
-                            <button
-                                className="back-button"
-                                onClick={() => setStep(1)}
-                            >
+                            <button onClick={handleCreate} className="create-button">
+                                {chartType === 'gps' ? 'Add Map' : 'Create Chart'}
+                            </button>
+                            <button onClick={handleBack} className="back-button">
                                 Back
                             </button>
-                            <button onClick={onClose}>Cancel</button>
-                        </div>
-                    </>
-                )}
-
-                {step === 2 && chartType === 'gps' && (
-                    <>
-                        <div className="form-group">
-                            <label htmlFor="deviceName">Device Name</label>
-                            <input
-                                id="deviceName"
-                                type="text"
-                                value={deviceName}
-                                onChange={(e) => setDeviceName(e.target.value)}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label htmlFor="deviceEUI">
-                                Device EUI (comma-separated numbers)
-                            </label>
-                            <input
-                                id="deviceEUI"
-                                type="text"
-                                value={deviceEUI}
-                                onChange={(e) => setDeviceEUI(e.target.value)}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label htmlFor="latitude">Latitude</label>
-                            <input
-                                id="latitude"
-                                type="number"
-                                step="any"
-                                value={latitude}
-                                onChange={(e) => setLatitude(e.target.value)}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label htmlFor="longitude">Longitude</label>
-                            <input
-                                id="longitude"
-                                type="number"
-                                step="any"
-                                value={longitude}
-                                onChange={(e) => setLongitude(e.target.value)}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label htmlFor="altitude">Altitude</label>
-                            <input
-                                id="altitude"
-                                type="number"
-                                step="any"
-                                value={altitude}
-                                onChange={(e) => setAltitude(e.target.value)}
-                            />
-                        </div>
-                        {errorMessage && <p style={{ color: 'red' }}>{errorMessage}</p>}
-
-                        <div className="modal-actions">
-                            <button onClick={handleCreate}>Create GPS Map</button>
-                            <button
-                                className="back-button"
-                                onClick={() => setStep(1)}
-                            >
-                                Back
+                            <button onClick={onClose} className="cancel-button">
+                                Cancel
                             </button>
-                            <button onClick={onClose}>Cancel</button>
                         </div>
                     </>
                 )}
