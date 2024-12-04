@@ -27,7 +27,7 @@ const ChartModal = ({ onClose, onAddChart }) => {
     useEffect(() => {
         const fetchTopics = async () => {
             try {
-                const response = await fetch('http://localhost:5000/api/topics');
+                const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/topics`);
                 const result = await response.json();
                 setTopics(result);
                 if (result[0] && chartType !== 'gps') {
@@ -50,7 +50,7 @@ const ChartModal = ({ onClose, onAddChart }) => {
                 try {
                     const encodedType = encodeURIComponent(selectedTopic.type);
                     const response = await fetch(
-                        `http://localhost:5000/api/message_structure/${encodedType}`
+                        `${process.env.REACT_APP_API_BASE_URL}/api/message_structure/${encodedType}`
                     );
                     const result = await response.json();
 

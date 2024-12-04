@@ -66,7 +66,7 @@ const HeaderAlerts = () => {
         isFetchingRef.current = true;
 
         try {
-            const response = await fetch("http://localhost:5000/api/topic_echo/notifications?type=notification_msgs/msg/Notification&number_of_msgs=1");
+            const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/topic_echo/notifications?type=notification_msgs/msg/Notification&number_of_msgs=1`);
             const data = await response.json();
 
             if (!data || !data.message || !data.message.info) {

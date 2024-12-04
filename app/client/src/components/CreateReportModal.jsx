@@ -19,7 +19,7 @@ const CreateReportModal = ({ isOpen, onClose }) => {
     const fetchTopics = async () => {
         try {
             console.log('Fetching topics from API...');
-            const response = await fetch('http://localhost:5000/api/topics');
+            const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/topics`);
             const data = await response.json();
             console.log('Topics fetched successfully:', data);
             setTopics(data);
@@ -39,7 +39,7 @@ const CreateReportModal = ({ isOpen, onClose }) => {
             console.log(`Starting report generation for topic: ${selectedTopic}`);
             const encodedTopic = encodeURIComponent(selectedTopic);
             const response = await fetch(
-                `http://localhost:5000/api/topic_echo_data_base_any/${encodedTopic}?type=lora_msgs/msg/E5BoardUplink`
+                `${process.env.REACT_APP_API_BASE_URL}/api/topic_echo_data_base_any/${encodedTopic}?type=lora_msgs/msg/E5BoardUplink`
             );
             const data = await response.json();
 

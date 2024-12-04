@@ -41,7 +41,7 @@ export default function Gps({ chartData }) {
     const fetchDataAndDisplayMarkers = async () => {
         try {
             const response = await fetch(
-                "http://localhost:5000/api/topic_echo_gps_devices"
+                `${process.env.REACT_APP_API_BASE_URL}/api/topic_echo_gps_devices`
             );
             const data = await response.json();
 
@@ -153,7 +153,7 @@ export default function Gps({ chartData }) {
             is_moving: false,
         };
 
-        fetch('http://localhost:5000/api/add_gps_device', {
+        fetch(`${process.env.REACT_APP_API_BASE_URL}/api/add_gps_device`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -202,7 +202,7 @@ export default function Gps({ chartData }) {
             },
         };
 
-        fetch('http://localhost:5000/api/delete_gps_device', {
+        fetch(`${process.env.REACT_APP_API_BASE_URL}/api/delete_gps_device`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -263,7 +263,7 @@ export default function Gps({ chartData }) {
             is_moving: false,
         };
 
-        fetch('http://localhost:5000/api/modify_gps_device', {
+        fetch(`${process.env.REACT_APP_API_BASE_URL}/api/modify_gps_device`, {
             method: 'POST', // Assuming POST request
             headers: {
                 'Content-Type': 'application/json',
@@ -339,7 +339,7 @@ export default function Gps({ chartData }) {
         setLoadingDevices(true);
 
         // Fetch devices data
-        fetch('http://localhost:5000/api/topic_echo_gps_devices')
+        fetch(`${process.env.REACT_APP_API_BASE_URL}/api/topic_echo_gps_devices`)
             .then((response) => response.json())
             .then((data) => {
                 if (data.message?.devices_data) {

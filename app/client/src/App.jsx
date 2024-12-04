@@ -18,7 +18,7 @@ const App = () => {
         }
     }, []);
 
-    // Function to update charts and localStorage
+    // Function to update charts and localStoragef
     const updateCharts = (newCharts) => {
         setCharts(newCharts);
         localStorage.setItem('charts', JSON.stringify(newCharts));

@@ -35,9 +35,25 @@ GITHUB_TOKEN=<your_github_token> docker-compose up --build
 
 # Run local
 
+Backend:
+
 ```bash 
 cd wisevision-dashboard
 python3 -m app.server.run
+```
+
+Frontend:
+
+Before run create `.env` file with adress to backend. (default->localhost)
+```bash
+cd app/client
+cp .env_example .env
+```
+
+```bash
+cd app/client
+npm install
+npm start
 ```
 
 ## Test the api route

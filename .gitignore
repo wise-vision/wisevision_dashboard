@@ -51,3 +51,6 @@ app/client/.env.production.local
 app/client/npm-debug.log*
 app/client/yarn-debug.log*
 app/client/yarn-error.log*
+
+# environment
+**.env

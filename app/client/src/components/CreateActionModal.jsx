@@ -40,7 +40,7 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
         if (isOpen) {
             const fetchTopics = async () => {
                 try {
-                    const response = await fetch('http://localhost:5000/api/topics');
+                    const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/topics`);
                     const data = await response.json();
                     setTopics(data);
                 } catch (error) {
@@ -57,7 +57,7 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
             const fetchMessageStructure = async () => {
                 setIsLoadingFields(true);
                 try {
-                    const response = await fetch(`http://localhost:5000/api/message_structure/${actionData.listenMessageType}`);
+                    const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/message_structure/${actionData.listenMessageType}`);
                     const data = await response.json();
                     setMessageStructure(data);
                 } catch (error) {
@@ -90,7 +90,7 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
         if (actionType === 'combined' && isOpen) {
             const fetchAvailableActions = async () => {
                 try {
-                    const response = await fetch('http://localhost:5000/api/available_topics');
+                    const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/available_topics`);
                     const data = await response.json();
                     setAvailableActions(data.available_topics_with_parameters_and_time);
                 } catch (error) {
@@ -184,7 +184,7 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
         }
 
         try {
-            const response = await fetch('http://localhost:5000/api/create_automatic_action', {
+            const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/create_automatic_action`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -244,7 +244,7 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
 
         try {
             //api
-            const response = await fetch('http://localhost:5000/api/create_combined_automatic_action', {
+            const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/create_combined_automatic_action`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
