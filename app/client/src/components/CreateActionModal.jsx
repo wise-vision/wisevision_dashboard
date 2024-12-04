@@ -15,7 +15,8 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
         triggerType: 'LessThan',
         pubMessageType: '',
         triggerText: '',
-        dataValidityMs: ''
+        dataValidityMs: '',
+        publicationMethod: 0 // Dodane pole
     });
 
     // State for combined action
@@ -25,77 +26,125 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
     const [combinedActionData, setCombinedActionData] = useState({
         actionAndPublisherName: '',
         logicExpression: '',
-        triggerText: ''
+        triggerText: '',
+        publicationMethod: 0
     });
 
     const [topics, setTopics] = useState([]);
     const [messageStructure, setMessageStructure] = useState({});
     const [fields, setFields] = useState([]);
     const [message, setMessage] = useState('');
+    const [isLoadingFields, setIsLoadingFields] = useState(false);
 
     useEffect(() => {
-        const fetchTopics = async () => {
-            try {
-                const response = await fetch('http://localhost:5000/api/topics');
-                const data = await response.json();
-                setTopics(data);
-            } catch (error) {
-                console.error('Error fetching topics:', error);
-            }
-        };
-
-        fetchTopics();
-    }, []);
-
-    useEffect(() => {
-        const fetchMessageStructure = async () => {
-            if (actionData.listenTopic && actionData.listenMessageType) {
+        if (isOpen) {
+            const fetchTopics = async () => {
                 try {
-                    const response = await fetch(`http://localhost:5000/api/message_structure/${actionData.listenMessageType}`);
+                    const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/topics`);
+                    const data = await response.json();
+                    setTopics(data);
+                } catch (error) {
+                    console.error('Error fetching topics:', error);
+                }
+            };
+
+            fetchTopics();
+        }
+    }, [isOpen]);
+
+    useEffect(() => {
+        if (actionData.listenMessageType) {
+            const fetchMessageStructure = async () => {
+                setIsLoadingFields(true);
+                try {
+                    const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/message_structure/${actionData.listenMessageType}`);
                     const data = await response.json();
                     setMessageStructure(data);
                 } catch (error) {
                     console.error('Error fetching message structure:', error);
+                    setMessageStructure({});
+                    setFields([]);
+                } finally {
+                    setIsLoadingFields(false);
                 }
-            }
-        };
+            };
 
-        fetchMessageStructure();
-    }, [actionData.listenTopic, actionData.listenMessageType]);
+            fetchMessageStructure();
+        } else {
+            // Reset message structure and fields if listenMessageType is empty
+            setMessageStructure({});
+            setFields([]);
+        }
+    }, [actionData.listenMessageType]);
 
     useEffect(() => {
-        if (messageStructure) {
+        if (messageStructure && Object.keys(messageStructure).length > 0) {
             const availableFields = extractFields(messageStructure);
             setFields(availableFields);
+        } else {
+            setFields([]);
         }
     }, [messageStructure]);
 
     useEffect(() => {
-        const fetchAvailableActions = async () => {
-            try {
-                const response = await fetch('http://localhost:5000/api/available_topics');
-                const data = await response.json();
-                setAvailableActions(data.available_topics_with_parameters_and_time);
-            } catch (error) {
-                console.error('Error fetching available actions:', error);
-            }
-        };
+        if (actionType === 'combined' && isOpen) {
+            const fetchAvailableActions = async () => {
+                try {
+                    const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/available_topics`);
+                    const data = await response.json();
+                    setAvailableActions(data.available_topics_with_parameters_and_time);
+                } catch (error) {
+                    console.error('Error fetching available actions:', error);
+                }
+            };
 
-        if (actionType === 'combined') {
             fetchAvailableActions();
         }
-    }, [actionType]);
+    }, [actionType, isOpen]);
+
+    useEffect(() => {
+        if (!isOpen) {
+            // Reset all states when modal is closed
+            setActionType(null);
+            setActionData({
+                actionAndPublisherName: '',
+                listenTopic: '',
+                listenMessageType: '',
+                value: '',
+                triggerVal: '',
+                triggerType: 'LessThan',
+                pubMessageType: '',
+                triggerText: '',
+                dataValidityMs: '',
+                publicationMethod: 0
+            });
+            setCombinedActionData({
+                actionAndPublisherName: '',
+                logicExpression: '',
+                triggerText: '',
+                publicationMethod: 0
+            });
+            setSelectedActions([]);
+            setFields([]);
+            setMessageStructure({});
+            setMessage('');
+        }
+    }, [isOpen]);
 
     const extractFields = (structure, parent = '') => {
         let fields = [];
         for (let key in structure) {
+            const value = structure[key];
             const fullPath = parent ? `${parent}.${key}` : key;
-            if (typeof structure[key] === 'object') {
-                if (Array.isArray(structure[key])) {
-                    fields.push(fullPath + '[]');
+
+            if (Array.isArray(value)) {
+                if (value.length > 0 && typeof value[0] === 'object') {
+                    fields = fields.concat(extractFields(value[0], fullPath + '[]'));
                 } else {
-                    fields = fields.concat(extractFields(structure[key], fullPath));
+                    fields.push(fullPath + '[]');
                 }
+            } else if (typeof value === 'object' && value !== null) {
+                fields = fields.concat(extractFields(value, fullPath));
             } else {
                 fields.push(fullPath);
             }
@@ -125,10 +174,17 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        const dataValidityMsAsNumber = parseInt(actionData.dataValidityMs);
+        const dataValidityMsAsNumber = parseInt(actionData.dataValidityMs, 10);
+        const publicationMethodAsNumber = parseInt(actionData.publicationMethod, 10);
+
+        // Walidacja publicationMethod
+        if (isNaN(publicationMethodAsNumber) || publicationMethodAsNumber < 0 || publicationMethodAsNumber > 6) {
+            setMessage('Publication Method musi być liczbą w zakresie od 0 do 6.');
+            return;
+        }
 
         try {
-            const response = await fetch('http://localhost:5000/api/create_automatic_action', {
+            const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/create_automatic_action`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -142,7 +198,8 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
                     action_and_publisher_name: actionData.actionAndPublisherName,
                     pub_message_type: actionData.pubMessageType,
                     trigger_text: actionData.triggerText,
-                    data_validity_ms: dataValidityMsAsNumber
+                    data_validity_ms: dataValidityMsAsNumber,
+                    publication_method: publicationMethodAsNumber // Dodane pole
                 })
             });
 
@@ -169,16 +226,25 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
     const handleCombinedSubmit = async (e) => {
         e.preventDefault();
 
+        const publicationMethodAsNumber = parseInt(combinedActionData.publicationMethod, 10);
+
+        // Walidacja publicationMethod
+        if (isNaN(publicationMethodAsNumber) || publicationMethodAsNumber < 0 || publicationMethodAsNumber > 6) {
+            setMessage('Publication Method musi być liczbą w zakresie od 0 do 6.');
+            return;
+        }
+
         const data = {
             listen_topics: selectedActions,
             logic_expression: combinedActionData.logicExpression,
             action_and_publisher_name: combinedActionData.actionAndPublisherName,
             trigger_text: combinedActionData.triggerText,
-            publication_method: 2
+            publication_method: publicationMethodAsNumber // Dodane pole
         };
 
         try {
-            const response = await fetch('http://localhost:5000/api/create_combined_automatic_action', {
+            //api
+            const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/create_combined_automatic_action`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -187,7 +253,7 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
             });
 
             const result = await response.json();
-            console.log("API Response:", result); // Log the API response for debugging
+            console.log("API Response:", result);
 
             if (result.success) {
                 setMessage(`Combined action created successfully. Response: ${JSON.stringify(result)}`);
@@ -241,10 +307,12 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
                     <form onSubmit={handleCombinedSubmit} className="new-action-form">
                         <div className="form-group">
                             <label>Number of Actions to Combine:</label>
-                            <select value={numActions} onChange={(e) => setNumActions(parseInt(e.target.value))}>
+                            <select value={numActions} onChange={(e) => setNumActions(parseInt(e.target.value, 10))}>
                                 <option value={2}>2</option>
                                 <option value={3}>3</option>
                                 <option value={4}>4</option>
+                                <option value={5}>5</option>
+                                <option value={6}>6</option>
                             </select>
                         </div>
                         {[...Array(numActions)].map((_, index) => (
@@ -274,8 +342,7 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
                                 required
                             />
                             <div className="info-with-button">
-                                <small>Use the action names selected above in your logic expression (e.g., "Action1 or
-                                    Action2")</small>
+                                <small>Use the action names selected above in your logic expression (e.g., "Action1 or Action2")</small>
                             </div>
                         </div>
                         <div className="form-group">
@@ -298,7 +365,18 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
                                 required
                             />
                         </div>
-                        {/* Publication method is always 2*/}
+                        <div className="form-group">
+                            <label>Publication Method (0-6):</label>
+                            <input
+                                type="number"
+                                name="publicationMethod"
+                                value={combinedActionData.publicationMethod}
+                                onChange={handleCombinedChange}
+                                min="0"
+                                max="6"
+                                required
+                            />
+                        </div>
                         <div className="modal-actions">
                             <button type="submit" className="add-button">Create</button>
                             <button type="button" onClick={handleCancel} className="close-button">Cancel</button>
@@ -345,19 +423,24 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
                             name="listenMessageType"
                             value={actionData.listenMessageType}
                             onChange={handleChange}
+                            placeholder="e.g., std_msgs/String"
                             required
                         />
                     </div>
                     <div className="form-group">
                         <label>Field to Read:</label>
-                        <select name="value" value={actionData.value} onChange={handleChange} required>
-                            <option value="">Select a Field</option>
-                            {fields.map((field, index) => (
-                                <option key={index} value={field}>
-                                    {field}
-                                </option>
-                            ))}
-                        </select>
+                        {isLoadingFields ? (
+                            <p>Loading fields...</p>
+                        ) : (
+                            <select name="value" value={actionData.value} onChange={handleChange} required>
+                                <option value="">Select a Field</option>
+                                {fields.map((field, index) => (
+                                    <option key={index} value={field}>
+                                        {field}
+                                    </option>
+                                ))}
+                            </select>
+                        )}
                     </div>
                     <div className="form-group">
                         <label>Trigger Value:</label>
@@ -382,6 +465,18 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
                     <div className="form-group">
                         <label>Data Validity (ms):</label>
                         <input type="number" name="dataValidityMs" value={actionData.dataValidityMs} onChange={handleChange} required />
+                    </div>
+                    <div className="form-group">
+                        <label>Publication Method (0-6):</label>
+                        <input
+                            type="number"
+                            name="publicationMethod"
+                            value={actionData.publicationMethod}
+                            onChange={handleChange}
+                            min="0"
+                            max="6"
+                            required
+                        />
                     </div>
                     <div className="modal-actions">
                         <button type="submit" className="add-button">Create</button>

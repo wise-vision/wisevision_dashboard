@@ -69,7 +69,7 @@ const StyledLineChart = ({ data: { label, selectedTopic, unit, selectedPath } })
             const encodedTopic = encodeURIComponent(selectedTopic.name);
             const encodedType = encodeURIComponent(selectedTopic.type);
             const response = await axios.get(
-                `http://localhost:5000/api/topic_echo_data_base_any_last_week/${encodedTopic}?type=${encodedType}`,
+                `${process.env.REACT_APP_API_BASE_URL}/api/topic_echo_data_base_any_last_week/${encodedTopic}?type=${encodedType}`,
                 { signal }
             );
 
@@ -142,7 +142,7 @@ const StyledLineChart = ({ data: { label, selectedTopic, unit, selectedPath } })
                 const encodedTopic = encodeURIComponent(selectedTopic.name);
                 const encodedType = encodeURIComponent(selectedTopic.type);
                 const response = await axios.get(
-                    `http://localhost:5000/api/topic_echo/${encodedTopic}?type=${encodedType}`
+                    `${process.env.REACT_APP_API_BASE_URL}/api/topic_echo/${encodedTopic}?type=${encodedType}`
                 );
 
                 console.log('Live data response:', response.data);

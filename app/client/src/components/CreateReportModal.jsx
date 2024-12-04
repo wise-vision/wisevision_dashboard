@@ -4,8 +4,9 @@ import '../styles/CreateReportModal.css';
 
 const CreateReportModal = ({ isOpen, onClose }) => {
     const [topics, setTopics] = useState([]);
-    const [selectedTopics, setSelectedTopics] = useState([]);
+    const [selectedTopic, setSelectedTopic] = useState('');
     const [reportName, setReportName] = useState('');
+    const [errorMessage, setErrorMessage] = useState(''); // Dodano dla obsługi błędów
 
     useEffect(() => {
         if (isOpen) {
@@ -18,7 +19,7 @@ const CreateReportModal = ({ isOpen, onClose }) => {
     const fetchTopics = async () => {
         try {
             console.log('Fetching topics from API...');
-            const response = await fetch('http://localhost:5000/api/topics');
+            const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/topics`);
             const data = await response.json();
             console.log('Topics fetched successfully:', data);
             setTopics(data);
@@ -29,24 +30,25 @@ const CreateReportModal = ({ isOpen, onClose }) => {
 
     const handleGenerateReport = async () => {
         try {
-            console.log('Starting report generation...');
-            // Fetch detailed data for each selected topic from the API
-            const detailedDataPromises = selectedTopics.map(async (topic) => {
-                console.log(`Fetching detailed data for topic: ${topic}`);
-                const encodedTopic = encodeURIComponent(topic);
-                const response = await fetch(
-                    `http://localhost:5000/api/topic_echo_data_base_any/${encodedTopic}?type=lora_msgs/msg/E5BoardUplink`
-                );
-                const data = await response.json();
-                console.log(`Data for topic "${topic}" fetched successfully.`, data);
-                return {
-                    topic,
-                    data: data.messages || []
-                };
-            });
+            setErrorMessage(''); // Resetujemy komunikat błędu na początku
+            if (!selectedTopic) {
+                setErrorMessage('Please select a topic.');
+                return;
+            }
 
-            const detailedData = await Promise.all(detailedDataPromises);
-            console.log('All detailed data fetched successfully.');
+            console.log(`Starting report generation for topic: ${selectedTopic}`);
+            const encodedTopic = encodeURIComponent(selectedTopic);
+            const response = await fetch(
+                `${process.env.REACT_APP_API_BASE_URL}/api/topic_echo_data_base_any/${encodedTopic}?type=lora_msgs/msg/E5BoardUplink`
+            );
+            const data = await response.json();
+
+            const messages = data.messages || [];
+            if (messages.length === 0) {
+                setErrorMessage('Not available'); // Ustawiamy komunikat, jeśli brak danych
+                console.log('No data available for the selected topic.');
+                return;
+            }
 
             // Create a new PDF document
             const doc = new jsPDF();
@@ -60,33 +62,24 @@ const CreateReportModal = ({ isOpen, onClose }) => {
 
             doc.setFontSize(8);
 
-            // Generate the content for the PDF report
-            detailedData.forEach(topicData => {
-                console.log(`Adding data for topic: ${topicData.topic}`);
+            // Add topic header
+            doc.text(`Topic: ${selectedTopic}`, margin, yOffset);
+            yOffset += lineHeight;
 
-                // Add topic header
-                doc.text(`Topic: ${topicData.topic}`, margin, yOffset);
-                yOffset += lineHeight;
+            messages.forEach((message, index) => {
+                const messageText = `Message ${index + 1}: ${JSON.stringify(message)}`;
+                const splitText = doc.splitTextToSize(messageText, usableWidth);
 
-                topicData.data.forEach((message, index) => {
-                    const messageText = `Message ${index + 1}: ${JSON.stringify(message)}`;
-                    const splitText = doc.splitTextToSize(messageText, usableWidth); // Split text to fit within the usable width
-
-                    splitText.forEach((line) => {
-                        // Check if adding the next line exceeds page height
-                        if (yOffset > doc.internal.pageSize.getHeight() - margin) {
-                            console.log('Content exceeds page height, adding new page...');
-                            doc.addPage();
-                            yOffset = margin; // Reset yOffset after adding a new page
-                        }
-                        doc.text(line, margin, yOffset);
-                        yOffset += lineHeight;
-                    });
+                splitText.forEach((line) => {
+                    if (yOffset > doc.internal.pageSize.getHeight() - margin) {
+                        console.log('Content exceeds page height, adding new page...');
+                        doc.addPage();
+                        yOffset = margin;
+                    }
+                    doc.text(line, margin, yOffset);
+                    yOffset += lineHeight;
                 });
-
-                yOffset += lineHeight; // Space between topics
             });
-
 
             const fileName = reportName.trim() ? `${reportName}.pdf` : 'report.pdf';
             console.log(`Saving PDF document as: ${fileName}`);
@@ -98,6 +91,7 @@ const CreateReportModal = ({ isOpen, onClose }) => {
             onClose();
         } catch (error) {
             console.error('Error generating report:', error);
+            setErrorMessage('Error generating report. Please try again.');
         }
     };
 
@@ -119,14 +113,14 @@ const CreateReportModal = ({ isOpen, onClose }) => {
                     />
                 </div>
 
-                {/* Topic Selection */}
+                {/* Dropdown Topic Selection */}
                 <div className="form-group">
-                    <label>Select Topics:</label>
+                    <label>Select Topic:</label>
                     <select
-                        multiple
-                        value={selectedTopics}
-                        onChange={(e) => setSelectedTopics(Array.from(e.target.selectedOptions, option => option.value))}
+                        value={selectedTopic}
+                        onChange={(e) => setSelectedTopic(e.target.value)}
                     >
+                        <option value="" disabled>Select a topic</option>
                         {topics.map((topic) => (
                             <option key={topic.id} value={topic.name}>
                                 {topic.name}
@@ -134,6 +128,9 @@ const CreateReportModal = ({ isOpen, onClose }) => {
                         ))}
                     </select>
                 </div>
+
+                {/* Error Message */}
+                {errorMessage && <p className="error-message">{errorMessage}</p>}
 
                 {/* Actions */}
                 <div className="modal-actions">

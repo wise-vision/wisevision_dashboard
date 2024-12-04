@@ -15,8 +15,8 @@ const DeleteActionModal = ({ isOpen, onClose }) => {
     const fetchActions = async () => {
         try {
             const [responseNormal, responseCombined] = await Promise.all([
-                fetch('http://localhost:5000/api/available_topics'),
-                fetch('http://localhost:5000/api/available_topics_combined')
+                fetch(`${process.env.REACT_APP_API_BASE_URL}/api/available_topics`),
+                fetch(`${process.env.REACT_APP_API_BASE_URL}/api/available_topics_combined`)
             ]);
 
             const dataNormal = await responseNormal.json();
@@ -68,7 +68,7 @@ const DeleteActionModal = ({ isOpen, onClose }) => {
         try {
             let response;
             if (selectedAction.actionType === 'normal') {
-                response = await fetch('http://localhost:5000/api/delete_automatic_action', {
+                response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/delete_automatic_action`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -78,7 +78,7 @@ const DeleteActionModal = ({ isOpen, onClose }) => {
                     })
                 });
             } else if (selectedAction.actionType === 'combined') {
-                response = await fetch('http://localhost:5000/api/delete_combined_automatic_action', {
+                response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/delete_combined_automatic_action`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'

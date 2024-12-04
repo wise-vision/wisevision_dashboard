@@ -1,3 +1,4 @@
+/* Modal Styling */
 .modal {
     position: fixed;
     top: 0;
@@ -21,6 +22,45 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
+.modal-content h2 {
+    margin-top: 0;
+}
+
+
+.chart-type-options {
+    display: flex;
+    justify-content: center;
+    gap: 100px;
+    margin-top: 20px;
+
+}
+
+.chart-type-button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 25px;
+    background: linear-gradient(135deg, #2e4a7b, #4a84d4); /* Gradient */
+    color: white;
+    font-weight: bold;
+    font-size: 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.chart-type-button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2);
+}
+
+.chart-type-button.selected {
+    background: linear-gradient(135deg, #1e3762, #3a86ff);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+
+/* Form Groups */
 .form-group {
     margin-bottom: 18px;
     text-align: left;
@@ -59,9 +99,6 @@
     color: #333;
     transform: scale(1);
 }
-
-
-
 
 .form-group select {
     width: 100%;
@@ -102,6 +139,14 @@
     outline: none;
 }
 
+/* Error Message */
+.error-message {
+    color: red;
+    margin-top: 10px;
+    text-align: center;
+}
+
+/* Modal Actions */
 .modal-actions {
     display: flex;
     justify-content: space-between;
@@ -152,3 +197,25 @@
     transform: translateY(-1px) !important;
 }
 
+/* Responsive Adjustments */
+@media (max-width: 600px) {
+    .modal-content {
+        width: 90%;
+        padding: 20px;
+    }
+
+    .chart-type-button {
+        width: 120px;
+        padding: 8px 16px;
+        font-size: 13px;
+    }
+
+    .modal-actions {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .modal-actions button {
+        width: 100%;
+    }
+}
