@@ -18,12 +18,32 @@ const ChartModal = ({ onClose, onAddChart }) => {
     const [selectedPath, setSelectedPath] = useState('');
     const [step, setStep] = useState(1);
 
-    // State variables to track manual input mode
     const [selectedTopicManualInput, setSelectedTopicManualInput] = useState(false);
     const [selectedUnitManualInput, setSelectedUnitManualInput] = useState(false);
     const [selectedPathManualInput, setSelectedPathManualInput] = useState(false);
+    const [isLoadingFields, setIsLoadingFields] = useState(false);
 
-    // Fetch topics from the API
+    const extractFields = (structure, parent = '') => {
+        let fields = [];
+        for (let key in structure) {
+            const value = structure[key];
+            const fullPath = parent ? `${parent}.${key}` : key;
+
+            if (Array.isArray(value)) {
+                if (value.length > 0 && typeof value[0] === 'object') {
+                    fields = fields.concat(extractFields(value[0], fullPath + '[]'));
+                } else {
+                    fields.push(fullPath + '[]');
+                }
+            } else if (typeof value === 'object' && value !== null) {
+                fields = fields.concat(extractFields(value, fullPath));
+            } else {
+                fields.push(fullPath);
+            }
+        }
+        return fields;
+    };
+
     useEffect(() => {
         const fetchTopics = async () => {
             try {
@@ -43,54 +63,31 @@ const ChartModal = ({ onClose, onAddChart }) => {
         fetchTopics();
     }, [chartType]);
 
-    // Fetch message structure and available numeric paths
     useEffect(() => {
         if (step === 2 && selectedTopic.type && chartType !== 'gps') {
             const fetchMessageStructure = async () => {
+                setIsLoadingFields(true);
                 try {
                     const encodedType = encodeURIComponent(selectedTopic.type);
                     const response = await fetch(
                         `${process.env.REACT_APP_API_BASE_URL}/api/message_structure/${encodedType}`
                     );
                     const result = await response.json();
-
-                    const paths = [];
-                    const traverse = (obj, currentPath = '') => {
-                        for (let key in obj) {
-                            const value = obj[key];
-                            const path = currentPath ? `${currentPath}.${key}` : key;
-
-                            if (typeof value === 'object' && !Array.isArray(value)) {
-                                traverse(value, path);
-                            } else if (
-                                typeof value === 'string' &&
-                                [
-                                    'int8',
-                                    'int16',
-                                    'int32',
-                                    'int64',
-                                    'uint8',
-                                    'uint16',
-                                    'uint32',
-                                    'uint64',
-                                    'float',
-                                    'double',
-                                ].includes(value)
-                            ) {
-                                paths.push(path);
-                            }
-                        }
-                    };
-                    traverse(result);
+                    const paths = extractFields(result);
                     setNestedPaths(paths);
                     if (paths[0]) {
                         setSelectedPath(paths[0]);
                     }
                 } catch (error) {
                     console.error('Error fetching message structure:', error);
+                    setNestedPaths([]);
+                } finally {
+                    setIsLoadingFields(false);
                 }
             };
             fetchMessageStructure();
+        } else if (chartType === 'gps' || step !== 2) {
+            setNestedPaths([]);
         }
     }, [step, selectedTopic, chartType]);
 
@@ -98,19 +95,14 @@ const ChartModal = ({ onClose, onAddChart }) => {
         setChartType(type);
         setStep(2);
         setErrorMessage('');
-        // Reset fields when chart type changes
         setChartLabel('');
         setSelectedUnit('');
-        setSelectedTopic({
-            name: '',
-            type: '',
-        });
+        setSelectedTopic({ name: '', type: '' });
         setSelectedPath('');
     };
 
     const handleCreate = () => {
         if (chartType === 'gps') {
-            // Validate map name
             if (!chartLabel.trim()) {
                 setErrorMessage('Please provide a map name.');
                 return;
@@ -125,7 +117,6 @@ const ChartModal = ({ onClose, onAddChart }) => {
             onAddChart(newChart);
             onClose();
         } else {
-            // Validate fields for other chart types
             if (!chartLabel.trim()) {
                 setErrorMessage('Please provide a chart name.');
                 return;
@@ -155,22 +146,13 @@ const ChartModal = ({ onClose, onAddChart }) => {
         }
     };
 
-    const handleNext = () => {
-        if (step === 2) {
-            handleCreate();
-        }
-    };
-
     const handleBack = () => {
         if (step === 2) {
             setStep(1);
             setChartType('');
             setChartLabel('');
             setSelectedUnit('');
-            setSelectedTopic({
-                name: '',
-                type: '',
-            });
+            setSelectedTopic({ name: '', type: '' });
             setSelectedPath('');
             setErrorMessage('');
         }
@@ -179,7 +161,6 @@ const ChartModal = ({ onClose, onAddChart }) => {
     return (
         <div className="modal">
             <div className="modal-content">
-                {/* Dynamic Modal Title */}
                 <h2>
                     {step === 1
                         ? 'Create a New Chart'
@@ -236,7 +217,6 @@ const ChartModal = ({ onClose, onAddChart }) => {
                 {step === 2 && (
                     <>
                         <div className="form-group">
-                            {/* Dynamic Label for Chart Name / Map Name */}
                             <label htmlFor="chartLabel">
                                 {chartType === 'gps' ? 'Map Name' : 'Chart Name'}
                             </label>
@@ -270,12 +250,10 @@ const ChartModal = ({ onClose, onAddChart }) => {
                                                 id="topic"
                                                 value={selectedTopic.name}
                                                 onChange={(e) => {
-                                                    const topic = topics.find(
-                                                        (t) => t.name === e.target.value
-                                                    );
+                                                    const topic = topics.find((t) => t.name === e.target.value);
                                                     setSelectedTopic({
-                                                        name: topic.name,
-                                                        type: topic.type,
+                                                        name: topic ? topic.name : '',
+                                                        type: topic ? topic.type : '',
                                                     });
                                                 }}
                                             >
@@ -341,40 +319,46 @@ const ChartModal = ({ onClose, onAddChart }) => {
 
                                 <div className="form-group">
                                     <label htmlFor="nestedMessage">Select Nested Message Path</label>
-                                    <div className="select-with-icon">
-                                        {selectedPathManualInput ? (
-                                            <input
-                                                id="nestedMessageInput"
-                                                type="text"
-                                                value={selectedPath}
-                                                onChange={(e) => setSelectedPath(e.target.value)}
-                                            />
-                                        ) : (
-                                            <select
-                                                id="nestedMessage"
-                                                value={selectedPath}
-                                                onChange={(e) => setSelectedPath(e.target.value)}
-                                            >
-                                                <option value="" disabled>
-                                                    Select path
-                                                </option>
-                                                {nestedPaths.map((path) => (
-                                                    <option key={path} value={path}>
-                                                        {path}
+                                    {isLoadingFields ? (
+                                        <p>Loading fields...</p>
+                                    ) : (
+                                        <div className="select-with-icon">
+                                            {selectedPathManualInput ? (
+                                                <input
+                                                    id="nestedMessageInput"
+                                                    type="text"
+                                                    value={selectedPath}
+                                                    onChange={(e) => setSelectedPath(e.target.value)}
+                                                    placeholder="Enter path manually"
+                                                />
+                                            ) : (
+                                                <select
+                                                    id="nestedMessage"
+                                                    value={selectedPath}
+                                                    onChange={(e) => setSelectedPath(e.target.value)}
+                                                >
+                                                    <option value="" disabled>
+                                                        Select path
                                                     </option>
-                                                ))}
-                                            </select>
-                                        )}
-                                        <button
-                                            type="button"
-                                            className="icon"
-                                            onClick={() =>
-                                                setSelectedPathManualInput(!selectedPathManualInput)
-                                            }
-                                        >
-                                            &#9998;
-                                        </button>
-                                    </div>
+                                                    {nestedPaths.map((path) => (
+                                                        <option key={path} value={path}>
+                                                            {path}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            )}
+                                            <button
+                                                type="button"
+                                                className="icon"
+                                                onClick={() =>
+                                                    setSelectedPathManualInput(!selectedPathManualInput)
+                                                }
+                                            >
+                                                &#9998;
+                                            </button>
+                                        </div>
+                                    )}
+                                    <small>You can manually edit the path to include array indices, e.g. <code>someArray[0].someField</code>.</small>
                                 </div>
                             </>
                         )}

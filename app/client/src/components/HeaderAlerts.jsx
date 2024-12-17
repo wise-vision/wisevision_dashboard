@@ -37,7 +37,7 @@ const HeaderAlerts = () => {
 
     const soundEnabledRef = useRef(soundEnabled);
     const timeoutRef = useRef(null);
-    const isFetchingRef = useRef(false); // Flaga wskazująca, czy aktualnie trwają zapytanie
+    const isFetchingRef = useRef(false);
 
     useEffect(() => {
         soundEnabledRef.current = soundEnabled;

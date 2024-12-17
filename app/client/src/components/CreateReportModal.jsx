@@ -6,7 +6,7 @@ const CreateReportModal = ({ isOpen, onClose }) => {
     const [topics, setTopics] = useState([]);
     const [selectedTopic, setSelectedTopic] = useState('');
     const [reportName, setReportName] = useState('');
-    const [errorMessage, setErrorMessage] = useState(''); // Dodano dla obsługi błędów
+    const [errorMessage, setErrorMessage] = useState('');
 
     useEffect(() => {
         if (isOpen) {
@@ -30,7 +30,7 @@ const CreateReportModal = ({ isOpen, onClose }) => {
 
     const handleGenerateReport = async () => {
         try {
-            setErrorMessage(''); // Resetujemy komunikat błędu na początku
+            setErrorMessage('');
             if (!selectedTopic) {
                 setErrorMessage('Please select a topic.');
                 return;
