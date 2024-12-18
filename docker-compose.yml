@@ -5,8 +5,6 @@ services:
     build:
       context: . 
       dockerfile: app/server/Dockerfile
-      args:
-        - GITHUB_TOKEN=${GITHUB_TOKEN}
     ports:
       - '5000:5000'
     ipc: "host"
