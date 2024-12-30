@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import '../styles/CreateActionModal.css';
+import penIcon from '../assets/images/pen.png';
 
 const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
     const [isClosing, setIsClosing] = useState(false);
     const [actionType, setActionType] = useState(null); // 'action' or 'combined'
 
-    // State for single action
     const [actionData, setActionData] = useState({
         actionAndPublisherName: '',
         listenTopic: '',
@@ -16,10 +16,9 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
         pubMessageType: '',
         triggerText: '',
         dataValidityMs: '',
-        publicationMethod: 0 // Dodane pole
+        publicationMethod: 0
     });
 
-    // State for combined action
     const [numActions, setNumActions] = useState(2);
     const [selectedActions, setSelectedActions] = useState([]);
     const [availableActions, setAvailableActions] = useState([]);
@@ -36,6 +35,8 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
     const [message, setMessage] = useState('');
     const [isLoadingFields, setIsLoadingFields] = useState(false);
 
+    const [selectedValueManualInput, setSelectedValueManualInput] = useState(false);
+
     useEffect(() => {
         if (isOpen) {
             const fetchTopics = async () => {
@@ -47,7 +48,6 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
                     console.error('Error fetching topics:', error);
                 }
             };
-
             fetchTopics();
         }
     }, [isOpen]);
@@ -71,7 +71,6 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
 
             fetchMessageStructure();
         } else {
-            // Reset message structure and fields if listenMessageType is empty
             setMessageStructure({});
             setFields([]);
         }
@@ -97,14 +96,12 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
                     console.error('Error fetching available actions:', error);
                 }
             };
-
             fetchAvailableActions();
         }
     }, [actionType, isOpen]);
 
     useEffect(() => {
         if (!isOpen) {
-            // Reset all states when modal is closed
             setActionType(null);
             setActionData({
                 actionAndPublisherName: '',
@@ -128,6 +125,7 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
             setFields([]);
             setMessageStructure({});
             setMessage('');
+            setSelectedValueManualInput(false);
         }
     }, [isOpen]);
 
@@ -173,13 +171,11 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-
         const dataValidityMsAsNumber = parseInt(actionData.dataValidityMs, 10);
         const publicationMethodAsNumber = parseInt(actionData.publicationMethod, 10);
 
-        // Walidacja publicationMethod
         if (isNaN(publicationMethodAsNumber) || publicationMethodAsNumber < 0 || publicationMethodAsNumber > 6) {
-            setMessage('Publication Method musi być liczbą w zakresie od 0 do 6.');
+            setMessage('Publication Method must be a number between 0 and 6.');
             return;
         }
 
@@ -199,7 +195,7 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
                     pub_message_type: actionData.pubMessageType,
                     trigger_text: actionData.triggerText,
                     data_validity_ms: dataValidityMsAsNumber,
-                    publication_method: publicationMethodAsNumber // Dodane pole
+                    publication_method: publicationMethodAsNumber
                 })
             });
 
@@ -210,7 +206,6 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
                 if (onActionCreated) {
                     onActionCreated(actionData);
                 }
-
                 setTimeout(() => {
                     handleCancel();
                 }, 5000);
@@ -225,12 +220,10 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
 
     const handleCombinedSubmit = async (e) => {
         e.preventDefault();
-
         const publicationMethodAsNumber = parseInt(combinedActionData.publicationMethod, 10);
 
-        // Walidacja publicationMethod
         if (isNaN(publicationMethodAsNumber) || publicationMethodAsNumber < 0 || publicationMethodAsNumber > 6) {
-            setMessage('Publication Method musi być liczbą w zakresie od 0 do 6.');
+            setMessage('Publication Method must be a number between 0 and 6.');
             return;
         }
 
@@ -239,11 +232,10 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
             logic_expression: combinedActionData.logicExpression,
             action_and_publisher_name: combinedActionData.actionAndPublisherName,
             trigger_text: combinedActionData.triggerText,
-            publication_method: publicationMethodAsNumber // Dodane pole
+            publication_method: publicationMethodAsNumber
         };
 
         try {
-            //api
             const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/create_combined_automatic_action`, {
                 method: 'POST',
                 headers: {
@@ -253,8 +245,6 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
             });
 
             const result = await response.json();
-            console.log("API Response:", result);
-
             if (result.success) {
                 setMessage(`Combined action created successfully. Response: ${JSON.stringify(result)}`);
                 if (onActionCreated) {
@@ -265,7 +255,7 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
                     handleCancel();
                 }, 5000);
             } else {
-                setMessage(`Failed to create combined action. Response: ${JSON.stringify(result)}`); // Display error message without closing
+                setMessage(`Failed to create combined action. Response: ${JSON.stringify(result)}`);
             }
         } catch (error) {
             console.error('Error creating combined action:', error);
@@ -342,7 +332,7 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
                                 required
                             />
                             <div className="info-with-button">
-                                <small>Use the action names selected above in your logic expression (e.g., "Action1 or Action2")</small>
+                                <small>Use the selected action names in your logic expression (e.g., "Action1 or Action2")</small>
                             </div>
                         </div>
                         <div className="form-group">
@@ -388,7 +378,6 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
         );
     }
 
-    // Existing action creation form
     return (
         <div className={`create-action-modal ${isClosing ? 'closing' : ''}`}>
             <div className={`modal-content ${isClosing ? 'closing' : ''}`}>
@@ -432,14 +421,33 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
                         {isLoadingFields ? (
                             <p>Loading fields...</p>
                         ) : (
-                            <select name="value" value={actionData.value} onChange={handleChange} required>
-                                <option value="">Select a Field</option>
-                                {fields.map((field, index) => (
-                                    <option key={index} value={field}>
-                                        {field}
-                                    </option>
-                                ))}
-                            </select>
+                            <div className="select-with-icon">
+                                {selectedValueManualInput ? (
+                                    <input
+                                        type="text"
+                                        name="value"
+                                        value={actionData.value}
+                                        onChange={handleChange}
+                                        required
+                                    />
+                                ) : (
+                                    <select name="value" value={actionData.value} onChange={handleChange} required>
+                                        <option value="">Select a Field</option>
+                                        {fields.map((field, index) => (
+                                            <option key={index} value={field}>
+                                                {field}
+                                            </option>
+                                        ))}
+                                    </select>
+                                )}
+                                <button
+                                    type="button"
+                                    className="icon"
+                                    onClick={() => setSelectedValueManualInput(!selectedValueManualInput)}
+                                >
+                                    <img src={penIcon} alt="Edit" />
+                                </button>
+                            </div>
                         )}
                     </div>
                     <div className="form-group">
