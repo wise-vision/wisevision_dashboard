@@ -27,8 +27,8 @@ const ActionModal = ({ onClose }) => {
     const fetchActions = async () => {
         try {
             const [responseNormal, responseCombined] = await Promise.allSettled([
-                fetch('http://localhost:5000/api/available_topics'),
-                fetch('http://localhost:5000/api/available_topics_combined')
+                fetch(`${process.env.REACT_APP_API_BASE_URL}:5000/api/available_topics`),
+                fetch(`${process.env.REACT_APP_API_BASE_URL}/api/available_topics_combined`)
             ]);
 
             let actionsData = [];
@@ -120,7 +120,7 @@ const ActionModal = ({ onClose }) => {
             return;
         }
         try {
-            const response = await fetch('http://localhost:5000/api/trigger_actions', {
+            const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}5000/api/trigger_actions`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -224,7 +224,7 @@ const ActionModal = ({ onClose }) => {
                     publication_method: publicationMethodAsNumber,
                 };
             }
-            const response = await fetch('http://localhost:5000/api/change_automatic_action', {
+            const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}:5000/api/change_automatic_action`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
