@@ -683,14 +683,12 @@ def get_message_type(topic_name):
         return jsonify({'error': f"Invalid topic_name '{topic_name}'. Please follow ROS 2 naming conventions."}), 400
     try:
         message_type = ros2_manager.get_topic_message_type(topic_name)
-        print('Message type:', message_type)
         return jsonify({'message_type': message_type}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 @messages_api.route('/message_structure/<path:message_type>', methods=['GET'])
 def get_message_structure(message_type):
-    print('Message type:', message_type)
     try:
         structure = ros2_manager.get_message_structure(message_type)
         return jsonify(structure), 200

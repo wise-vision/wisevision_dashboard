@@ -19,6 +19,6 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 WORKDIR /usr/src
 SHELL ["/bin/bash", "-c"]
 
-ENTRYPOINT ["/bin/bash", "-c", "source /opt/ros/$ROS_DISTRO/setup.bash && source /root/wisevision_msgs_ws/install/setup.bash && exec python3 -m app.server.run"]
+ENTRYPOINT ["/bin/bash", "-c", "source /opt/ros/$ROS_DISTRO/setup.bash && source /root/wisevision_msgs_ws/install/setup.bash && exec gunicorn -k gthread -w 1 --threads 4 -b 0.0.0.0:5000 app.server.run:app"]
 
 EXPOSE 5000
