@@ -38,19 +38,32 @@ const StyledLineChart = ({ data: { label, selectedTopic, unit, selectedPath } })
             console.error('Invalid object provided:', obj);
             return undefined;
         }
-
-        const parts = path.split('.');
+    
+        const parts = path.split(/\.|\[|\]\.?/).filter(Boolean);
         let currentObj = obj;
-
+    
         for (let part of parts) {
-            if (currentObj[part] !== undefined) {
+            if (currentObj === undefined) {
+                console.error(`Path "${part}" not found in`, currentObj);
+                return undefined;
+            }
+    
+            if (part.match(/^\d+$/)) {
+                const index = parseInt(part, 10);
+                if (Array.isArray(currentObj) && currentObj[index] !== undefined) {
+                    currentObj = currentObj[index];
+                } else {
+                    console.error(`Index "${index}" not found in`, currentObj);
+                    return undefined;
+                }
+            } else if (currentObj[part] !== undefined) {
                 currentObj = currentObj[part];
             } else {
                 console.error(`Path "${part}" not found in`, currentObj);
                 return undefined;
             }
         }
-
+    
         if (typeof currentObj === 'number') {
             return currentObj;
         } else {
