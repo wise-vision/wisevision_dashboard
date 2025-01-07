@@ -77,7 +77,7 @@ class ROS2Manager:
         return ros_services
     
     def replace_percent_with_slash(self, topic_name):
-        return topic_name.replace('%', '/')
+        return topic_name.replace('%2F', '/')
     
     
     def serialize_ros_message_sub(self, msg):
@@ -119,7 +119,6 @@ class ROS2Manager:
     
     def get_topic_message(self, topic_name, topic_type):
         msg_type = get_message(topic_type)
-        topic_name = self.replace_percent_with_slash(topic_name)
         if not msg_type:
             raise ImportError(f"Could not find message type {topic_type}")
 
@@ -518,7 +517,6 @@ class ROS2Manager:
 
         request = service_type.Request()
         topic_name = params.get('topic_name')
-        topic_name = self.replace_percent_with_slash(topic_name)
         request.topic_name = topic_name
         request.message_type = 'any'
         request.number_of_msgs = params.get('number_of_msgs', 0)
@@ -615,7 +613,6 @@ class ROS2Manager:
     # END OF: Blackbox services
 
     def get_topic_message_type(self, topic_name):
-        topic_name = self.replace_percent_with_slash(topic_name)
         topics = self.node.get_topic_names_and_types()
         for name, types in topics:
             if name == topic_name:
