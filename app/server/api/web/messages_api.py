@@ -2,6 +2,7 @@ from flask import jsonify, Blueprint, request
 from ....server.service.ros2_manager import ros2_manager
 from rosidl_runtime_py.utilities import get_message
 from datetime import datetime, timedelta, timezone
+from urllib.parse import unquote
 import re
 
 messages_api = Blueprint('messages_api', __name__)
@@ -35,8 +36,9 @@ def is_valid_ros2_topic_name_struct(topic_name):
     Validates a topic_name against ROS 2 naming conventions for _struct topics.
 
     - Can start with `%`
-    - Can contain alphanumeric characters, `_`, `/`
+    - Can contain alphanumeric characters, `_`, `/`, `%`
     - Cannot contain `//`
+    - Cannot contain consecutive `%` (e.g., `%%`)
     - Cannot end with `/`
     - Must include '_struct' as a suffix
     - Cannot be a numeric string
@@ -45,11 +47,11 @@ def is_valid_ros2_topic_name_struct(topic_name):
     if not topic_name or topic_name.isdigit():
         return False
 
-    pattern = r'^(%?[a-zA-Z0-9_/]+)(?<!/)$'
-    if re.match(pattern, topic_name):
-        return True
+    pattern = r'^(%?[a-zA-Z0-9_/%.]+)(?<!/)$'
+    if not re.match(pattern, topic_name) or '//' in topic_name or '%%' in topic_name:
+        return False
 
-    return False
+    return True
 
 def is_valid_message_type(message_type):
     """
@@ -305,10 +307,10 @@ def create_database():
         return jsonify({'success': success}), 200 if success else 500
     except Exception as e:
         return jsonify({'error': str(e)}), 500    
-    
-# premium feature   
-@messages_api.route('/topic_echo_data_base_any/<string:topic_name>', methods=['GET'])
+     
+@messages_api.route('/topic_echo_data_base_any/<path:topic_name>', methods=['GET'])
 def get_messages_any(topic_name):
+    topic_name = unquote(topic_name)
     topic_type = request.args.get('type')
     if not topic_type:
         return jsonify({'error': 'Message type is required'}), 400
@@ -344,8 +346,9 @@ def get_messages_any(topic_name):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@messages_api.route('/topic_echo_data_base_any_last_week/<string:topic_name>', methods=['GET'])
+@messages_api.route('/topic_echo_data_base_any_last_week/<path:topic_name>', methods=['GET'])
 def get_messages_last7days(topic_name):
+    topic_name = unquote(topic_name)
     if not topic_name:
         return jsonify({'error': 'topic_name is required.'}), 400
     if not is_valid_ros2_topic_name(topic_name):
@@ -384,8 +387,9 @@ def get_messages_last7days(topic_name):
         return jsonify({'error': str(e)}), 500
 
 
-@messages_api.route('/topic_echo/<string:topic_name>', methods=['GET'])
+@messages_api.route('/topic_echo/<path:topic_name>', methods=['GET'])
 def echo_topic_message(topic_name):
+    topic_name = unquote(topic_name)
     if not topic_name:
         return jsonify({'error': 'topic_name is required.'}), 400
     if not is_valid_ros2_topic_name(topic_name):
