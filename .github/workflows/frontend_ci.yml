@@ -29,12 +29,12 @@ jobs:
 
       - name: Install dependencies
         run: |
-          cd wisevision-dashboard-ws/wisevision-dashboard/app/client
+          cd wisevision-dashboard-ws/app/client
           npm install
 
       - name: Run npm start and check for errors
         run: |
-          cd wisevision-dashboard-ws/wisevision-dashboard/app/client
+          cd wisevision-dashboard-ws/app/client
           npm start &
           sleep 10    
           kill $!
