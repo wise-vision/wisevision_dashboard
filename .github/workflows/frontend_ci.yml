@@ -42,6 +42,6 @@ jobs:
       - name: Clean up workspace
         if: always()
         run: |
-          sudo rm -rf wisevision-dashboard-ws 
+          rm -rf wisevision-dashboard-ws 
           
         continue-on-error: false
