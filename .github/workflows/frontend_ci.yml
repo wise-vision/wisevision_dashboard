@@ -20,7 +20,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          path: wisevision-dashboard
+          path: wisevision-dashboard-ws
 
       - name: Set up Node.js
         uses: actions/setup-node@v3
@@ -29,14 +29,19 @@ jobs:
 
       - name: Install dependencies
         run: |
-          cd wisevision-dashboard/app/client
+          cd wisevision-dashboard-ws/wisevision-dashboard/app/client
           npm install
 
       - name: Run npm start and check for errors
         run: |
-          cd wisevision-dashboard/app/client
+          cd wisevision-dashboard-ws/wisevision-dashboard/app/client
           npm start &
           sleep 10    
           kill $!
+
+      - name: Clean up workspace
+        if: always()
+        run: |
+          sudo rm -rf wisevision-dashboard-ws 
           
         continue-on-error: false
