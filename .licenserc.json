@@ -1,5 +1,5 @@
 {
-    "**/*.{c,cpp,h,hpp,js,ts,java,go,cs}": [
+    "**/*.{c,cpp,h,hpp,js,jsx,ts,java,go,cs,css}": [
         "/*",
         " * Copyright (C) 2025 wisevision",
         " *",
