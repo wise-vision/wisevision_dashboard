@@ -21,7 +21,7 @@
         "#  file, You can obtain one at https://mozilla.org/MPL/2.0/.",
         "#"
     ],
-    "**/*.{html}": [
+    "**/*.html": [
         "<!--",
         "  Copyright (C) 2025 wisevision",
         "",
