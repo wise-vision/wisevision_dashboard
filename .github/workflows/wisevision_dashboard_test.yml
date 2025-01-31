@@ -20,11 +20,11 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
       with:
-        path: wisevision-dashboard-ws
+        path: wisevision_dashboard_ws
 
     - name: Install Python dependencies
       run: |
-        cd wisevision-dashboard-ws
+        cd wisevision_dashboard_ws
         apt-get update && apt-get install -y python3-pip python3-colcon-common-extensions
         python3 -m pip install --upgrade pip
         pip install -r app/server/requirements.txt
@@ -38,4 +38,4 @@ jobs:
     - name: Clean up workspace
       if: always()
       run: |
-        sudo rm -rf wisevision-dashboard-ws
+        sudo rm -rf wisevision_dashboard_ws
