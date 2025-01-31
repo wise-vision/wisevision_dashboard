@@ -1,3 +1,13 @@
+/*
+ * Copyright (C) 2025 wisevision
+ *
+ * SPDX-License-Identifier: MPL-2.0
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
 // File: src/components/StyledLineChart.jsx
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -38,32 +48,19 @@ const StyledLineChart = ({ data: { label, selectedTopic, unit, selectedPath } })
             console.error('Invalid object provided:', obj);
             return undefined;
         }
-    
-        const parts = path.split(/\.|\[|\]\.?/).filter(Boolean);
+
+        const parts = path.split('.');
         let currentObj = obj;
-    
+
         for (let part of parts) {
-            if (currentObj === undefined) {
-                console.error(`Path "${part}" not found in`, currentObj);
-                return undefined;
-            }
-    
-            if (part.match(/^\d+$/)) {
-                const index = parseInt(part, 10);
-                if (Array.isArray(currentObj) && currentObj[index] !== undefined) {
-                    currentObj = currentObj[index];
-                } else {
-                    console.error(`Index "${index}" not found in`, currentObj);
-                    return undefined;
-                }
-            } else if (currentObj[part] !== undefined) {
+            if (currentObj[part] !== undefined) {
                 currentObj = currentObj[part];
             } else {
                 console.error(`Path "${part}" not found in`, currentObj);
                 return undefined;
             }
         }
-    
+
         if (typeof currentObj === 'number') {
             return currentObj;
         } else {

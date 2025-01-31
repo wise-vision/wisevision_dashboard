@@ -1,3 +1,14 @@
+/*
+ * Copyright (C) 2025 wisevision
+ *
+ * SPDX-License-Identifier: MPL-2.0
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
+/* Modal - tło */
 .create-action-modal {
     position: fixed;
     top: 0;
@@ -233,35 +244,4 @@
     display: flex;
     align-items: center;
     margin-top: 5px;
-}
-.select-with-icon {
-    display: flex;
-    align-items: center;
-}
-
-.select-with-icon select,
-.select-with-icon input[type="text"] {
-    flex: 1;
-}
-
-.select-with-icon .icon {
-    margin-left: 8px;
-    cursor: pointer;
-    color: #555;
-    font-size: 18px;
-    transform: scale(0.8);
-    background: none;
-    border: none;
-    outline: none;
-    padding: 0;
-}
-
-.select-with-icon .icon:hover {
-    color: #333;
-    transform: scale(1);
-}
-
-.select-with-icon .icon img {
-    width: 16px;
-    height: 16px;
 }

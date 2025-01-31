@@ -1,506 +1,447 @@
-import React, { useState, useEffect, useRef } from 'react';
-import '../styles/ActionModal.css';
+/*
+ * Copyright (C) 2025 wisevision
+ *
+ * SPDX-License-Identifier: MPL-2.0
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
 
-// Make sure that this GIF is animated
-import loadingGif from '../assets/images/loadingGif.gif';
+import React, { useState, useEffect } from 'react';
+import '../styles/ChartModal.css';
+import penIcon from '../assets/images/pen.png';
 
-const ActionModal = ({ onClose }) => {
-    const [actions, setActions] = useState([]);
-    const [selectedAction, setSelectedAction] = useState(null);
-    const [isEditing, setIsEditing] = useState(false);
-    const [editForm, setEditForm] = useState({});
-    const [loading, setLoading] = useState(true);
+const unitsSI = ['°C', 'kW', 'V', 'A', 'W', 'Hz', 'Pa'];
 
-    const intervalRef = useRef(null);
+const ChartModal = ({ onClose, onAddChart }) => {
+    const [chartType, setChartType] = useState('');
+    const [chartLabel, setChartLabel] = useState('');
+    const [errorMessage, setErrorMessage] = useState('');
+    const [topics, setTopics] = useState([]);
+    const [selectedTopic, setSelectedTopic] = useState({
+        name: '',
+        type: '',
+    });
+    const [selectedUnit, setSelectedUnit] = useState('');
+    const [nestedPaths, setNestedPaths] = useState([]);
+    const [selectedPath, setSelectedPath] = useState('');
+    const [step, setStep] = useState(1);
 
-    const fetchActions = async () => {
-        try {
-            const [responseNormal, responseCombined] = await Promise.allSettled([
-                fetch(`${process.env.REACT_APP_API_BASE_URL}:5000/api/available_topics`),
-                fetch(`${process.env.REACT_APP_API_BASE_URL}/api/available_topics_combined`)
-            ]);
+    // State variables to track manual input mode
+    const [selectedTopicManualInput, setSelectedTopicManualInput] = useState(false);
+    const [selectedUnitManualInput, setSelectedUnitManualInput] = useState(false);
+    const [selectedPathManualInput, setSelectedPathManualInput] = useState(false);
 
-            let actionsData = [];
-
-            // Processing normal actions
-            if (responseNormal.status === 'fulfilled') {
-                const dataNormal = await responseNormal.value.json();
-                if (dataNormal.available_topics_with_parameters_and_time) {
-                    const normalActions = dataNormal.available_topics_with_parameters_and_time.map((action, index) => ({
-                        id: `normal-${index}`,
-                        active: true,
-                        selected: false,
-                        actionType: 'normal',
-                        ...action,
-                    }));
-                    actionsData = actionsData.concat(normalActions);
-                }
-            } else {
-                console.error('Failed to fetch normal actions:', responseNormal.reason);
-            }
-
-            // Processing combined actions
-            if (responseCombined.status === 'fulfilled') {
-                const dataCombined = await responseCombined.value.json();
-                if (dataCombined.available_combined_topics_with_parameters_and_time) {
-                    const combinedActions = dataCombined.available_combined_topics_with_parameters_and_time.map((action, index) => ({
-                        id: `combined-${index}`,
-                        active: true,
-                        selected: false,
-                        actionType: 'combined',
-                        ...action,
-                    }));
-                    actionsData = actionsData.concat(combinedActions);
-                }
-            } else {
-                console.error('Failed to fetch combined actions:', responseCombined.reason);
-            }
-
-            if (actionsData.length > 0) {
-                setActions(actionsData);
-                setLoading(false);
-                // If actions are loaded, stop the interval
-                if (intervalRef.current) {
-                    clearInterval(intervalRef.current);
-                    intervalRef.current = null;
-                }
-            }
-            // If no actions, continue loading and let the interval retry
-        } catch (error) {
-            console.error('Error fetching actions:', error);
-            // Continue loading to keep the loading GIF visible
-        }
-    };
-
+    // Fetch topics from the API
     useEffect(() => {
-        // Start fetching actions when modal is mounted
-        fetchActions();
-
-        // Set an interval to retry fetching actions every 30 seconds
-        intervalRef.current = setInterval(() => {
-            fetchActions();
-        }, 30000);
-
-        // Cleanup: clear the interval when unmounting
-        return () => {
-            if (intervalRef.current) {
-                clearInterval(intervalRef.current);
+        const fetchTopics = async () => {
+            try {
+                const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/topics`);
+                const result = await response.json();
+                setTopics(result);
+                if (result[0] && chartType !== 'gps') {
+                    setSelectedTopic({
+                        name: result[0].name,
+                        type: result[0].type,
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching topics:', error);
             }
         };
-    }, []);
+        fetchTopics();
+    }, [chartType]);
 
-    const toggleActive = (id, currentStatus) => {
-        setActions(actions.map(action =>
-            action.id === id ? { ...action, active: !currentStatus } : action
-        ));
+    // Fetch message structure and available numeric paths
+    useEffect(() => {
+        if (step === 2 && selectedTopic.type && chartType !== 'gps') {
+            const fetchMessageStructure = async () => {
+                try {
+                    const encodedType = encodeURIComponent(selectedTopic.type);
+                    const response = await fetch(
+                        `${process.env.REACT_APP_API_BASE_URL}/api/message_structure/${encodedType}`
+                    );
+                    const result = await response.json();
+
+                    const paths = [];
+                    const traverse = (obj, currentPath = '') => {
+                        for (let key in obj) {
+                            const value = obj[key];
+                            const path = currentPath ? `${currentPath}.${key}` : key;
+
+                            if (typeof value === 'object' && !Array.isArray(value)) {
+                                traverse(value, path);
+                            } else if (
+                                typeof value === 'string' &&
+                                [
+                                    'int8',
+                                    'int16',
+                                    'int32',
+                                    'int64',
+                                    'uint8',
+                                    'uint16',
+                                    'uint32',
+                                    'uint64',
+                                    'float',
+                                    'double',
+                                ].includes(value)
+                            ) {
+                                paths.push(path);
+                            }
+                        }
+                    };
+                    traverse(result);
+                    setNestedPaths(paths);
+                    if (paths[0]) {
+                        setSelectedPath(paths[0]);
+                    }
+                } catch (error) {
+                    console.error('Error fetching message structure:', error);
+                }
+            };
+            fetchMessageStructure();
+        }
+    }, [step, selectedTopic, chartType]);
+
+    const handleChartTypeSelection = (type) => {
+        setChartType(type);
+        setStep(2);
+        setErrorMessage('');
+        // Reset fields when chart type changes
+        setChartLabel('');
+        setSelectedUnit('');
+        setSelectedTopic({
+            name: '',
+            type: '',
+        });
+        setSelectedPath('');
+        // Reset manual input flags
+        setSelectedTopicManualInput(false);
+        setSelectedUnitManualInput(false);
+        setSelectedPathManualInput(false);
     };
 
-    const toggleSelect = (id) => {
-        setActions(
-            actions.map(action =>
-                action.id === id ? { ...action, selected: !action.selected } : action
-            )
-        );
-    };
+    const handleCreate = () => {
+        setErrorMessage('');
 
-    const handleTriggerSelected = async () => {
-        const selectedActions = actions.filter(action => action.selected);
-        if (selectedActions.length === 0) {
+        if (!chartLabel.trim()) {
+            setErrorMessage('Proszę podać nazwę wykresu/mapy.');
             return;
         }
-        try {
-            const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}5000/api/trigger_actions`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ action_names: selectedActions.map(action => action.action_and_publisher_name) })
-            });
-            const data = await response.json();
-            if (data.success) {
-                alert('Selected actions have been triggered successfully.');
-            } else {
-                console.error('Failed to trigger selected actions.');
-            }
-        } catch (error) {
-            console.error('Error triggering actions:', error);
-        }
-    };
 
-    const handleActionNameClick = (action) => {
-        setSelectedAction(action);
-        if (action.actionType === 'normal') {
-            setEditForm({
-                new_action_and_publisher_name: action.action_and_publisher_name,
-                listen_topic: action.listen_topic,
-                listen_message_type: action.listen_message_type,
-                value: action.value,
-                trigger_val: action.trigger_val,
-                trigger_type: action.trigger_type,
-                pub_message_type: action.pub_message_type,
-                trigger_text: action.trigger_text,
-                data_validity_ms: action.data_validity_ms,
-                publication_method: action.publication_method,
-            });
-        } else if (action.actionType === 'combined') {
-            setEditForm({
-                new_action_and_publisher_name: action.action_and_publisher_name,
-                listen_topics: action.listen_topics,
-                logic_expression: action.logic_expression,
-                trigger_text: action.trigger_text,
-                publication_method: action.publication_method,
-            });
-        }
-        setIsEditing(false);
-    };
+        if (chartType === 'gps') {
+            const newChart = {
+                id: Date.now(),
+                type: chartType,
+                label: chartLabel,
+            };
 
-    const closeActionDetailsModal = () => {
-        setSelectedAction(null);
-        setIsEditing(false);
-    };
-
-    const handleEditToggle = () => {
-        setIsEditing(!isEditing);
-    };
-
-    const handleEditChange = (e) => {
-        const { name, value } = e.target;
-        if (name === 'listen_topics') {
-            setEditForm({
-                ...editForm,
-                [name]: value.split(',').map(topic => topic.trim()),
-            });
+            onAddChart(newChart);
+            onClose();
         } else {
-            setEditForm({
-                ...editForm,
-                [name]: value,
-            });
+
+
+            if (selectedTopicManualInput) {
+                if (!selectedTopic.name.trim()) {
+                    setErrorMessage('Proszę podać nazwę tematu.');
+                    return;
+                }
+            } else {
+                if (!selectedTopic.name) {
+                    setErrorMessage('Proszę wybrać temat.');
+                    return;
+                }
+            }
+
+
+            if (selectedUnitManualInput) {
+                if (!selectedUnit.trim()) {
+                    setErrorMessage('Proszę podać jednostkę.');
+                    return;
+                }
+            } else {
+                if (!selectedUnit) {
+                    setErrorMessage('Proszę wybrać jednostkę.');
+                    return;
+                }
+            }
+
+
+            if (selectedPathManualInput) {
+                if (!selectedPath.trim()) {
+                    setErrorMessage('Proszę podać ścieżkę zagnieżdżoną.');
+                    return;
+                }
+            } else {
+                if (!selectedPath) {
+                    setErrorMessage('Proszę wybrać ścieżkę zagnieżdżoną.');
+                    return;
+                }
+            }
+
+            const newChart = {
+                id: Date.now(),
+                type: chartType,
+                label: chartLabel,
+                selectedTopic: selectedTopicManualInput
+                    ? { name: selectedTopic.name }
+                    : selectedTopic,
+                selectedPath: selectedPath,
+                unit: selectedUnit,
+            };
+
+            onAddChart(newChart);
+            onClose();
         }
     };
 
-    const handleEditSubmit = async (e) => {
-        e.preventDefault();
-
-        const publicationMethodAsNumber = parseInt(editForm.publication_method, 10);
-        if (isNaN(publicationMethodAsNumber) || publicationMethodAsNumber < 0 || publicationMethodAsNumber > 6) {
-            alert('Publication Method must be a number between 0 and 6.');
-            return;
+    const handleNext = () => {
+        if (step === 2) {
+            handleCreate();
         }
+    };
 
-        try {
-            let requestBody = {};
-            if (selectedAction.actionType === 'normal') {
-                requestBody = {
-                    action_and_publisher_name_to_change: selectedAction.action_and_publisher_name,
-                    new_action_and_publisher_name: editForm.new_action_and_publisher_name,
-                    listen_topic: editForm.listen_topic,
-                    listen_message_type: editForm.listen_message_type,
-                    value: editForm.value,
-                    trigger_val: editForm.trigger_val,
-                    trigger_type: editForm.trigger_type,
-                    pub_message_type: editForm.pub_message_type,
-                    trigger_text: editForm.trigger_text,
-                    data_validity_ms: parseInt(editForm.data_validity_ms, 10),
-                    publication_method: publicationMethodAsNumber,
-                };
-            } else if (selectedAction.actionType === 'combined') {
-                requestBody = {
-                    action_and_publisher_name_to_change: selectedAction.action_and_publisher_name,
-                    new_action_and_publisher_name: editForm.new_action_and_publisher_name,
-                    listen_topics: editForm.listen_topics,
-                    logic_expression: editForm.logic_expression,
-                    trigger_text: editForm.trigger_text,
-                    publication_method: publicationMethodAsNumber,
-                };
-            }
-            const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}:5000/api/change_automatic_action`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(requestBody)
+    const handleBack = () => {
+        if (step === 2) {
+            setStep(1);
+            setChartType('');
+            setChartLabel('');
+            setSelectedUnit('');
+            setSelectedTopic({
+                name: '',
+                type: '',
             });
-            const data = await response.json();
-            if (data.success) {
-                alert('Action was successfully updated.');
-                fetchActions();
-                setIsEditing(false);
-                setSelectedAction(null);
-            } else {
-                console.error('Failed to update the action.');
-                alert('Failed to update the action.');
-            }
-        } catch (error) {
-            console.error('Error updating action:', error);
-            alert('An error occurred while updating the action.');
+            setSelectedPath('');
+            setErrorMessage('');
+            // Reset manual input states
+            setSelectedTopicManualInput(false);
+            setSelectedUnitManualInput(false);
+            setSelectedPathManualInput(false);
         }
     };
 
     return (
         <div className="modal">
             <div className="modal-content">
-                <h2>Actions</h2>
-                {loading ? (
-                    <div className="loading-container">
-                        <img src={loadingGif} alt="Loading..." className="loading-gif" />
-                    </div>
-                ) : actions.length > 0 ? (
-                    <div className="actions-table-container">
-                        <table className="actions-table">
-                            <thead>
-                            <tr>
-                                <th>Select</th>
-                                <th>Name</th>
-                                <th>Active</th>
-                                <th>Action Type</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            {actions.map((action) => (
-                                <tr key={action.id}>
-                                    <td>
-                                        <input
-                                            type="checkbox"
-                                            checked={action.selected || false}
-                                            onChange={() => toggleSelect(action.id)}
-                                        />
-                                    </td>
-                                    <td>
-                                        <button
-                                            className="action-name-button"
-                                            onClick={() => handleActionNameClick(action)}
-                                        >
-                                            {action.action_and_publisher_name}
-                                        </button>
-                                    </td>
-                                    <td>
-                                        <label className="switch">
-                                            <input
-                                                type="checkbox"
-                                                checked={action.active}
-                                                onChange={() => toggleActive(action.id, action.active)}
-                                            />
-                                            <span className="slider round"></span>
-                                        </label>
-                                    </td>
-                                    <td>{action.actionType}</td>
-                                </tr>
-                            ))}
-                            </tbody>
-                        </table>
-                    </div>
-                ) : (
-                    // If loading is false but actions are empty, continue showing loading GIF
-                    <div className="loading-container">
-                        <img src={loadingGif} alt="Loading..." className="loading-gif" />
+                {/* Dynamic Modal Title */}
+                <h2>
+                    {step === 1
+                        ? 'Utwórz Nowy Wykres'
+                        : chartType === 'gps'
+                            ? 'Dodaj Mapę'
+                            : 'Utwórz Nowy Wykres'}
+                </h2>
+
+                {step === 1 && (
+                    <div className="step step-1">
+                        <div className="form-group">
+                            <label></label>
+                            <div className="chart-type-options">
+                                <button
+                                    type="button"
+                                    className={`chart-type-button ${chartType === 'line' ? 'selected' : ''}`}
+                                    onClick={() => handleChartTypeSelection('line')}
+                                >
+                                    Wykres Liniowy
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`chart-type-button ${chartType === 'gps' ? 'selected' : ''}`}
+                                    onClick={() => handleChartTypeSelection('gps')}
+                                >
+                                    Mapa GPS
+                                </button>
+                            </div>
+                        </div>
+
+                        {errorMessage && <p className="error-message">{errorMessage}</p>}
+
+                        <div className="modal-actions">
+                            <button onClick={onClose} className="cancel-button">
+                                Anuluj
+                            </button>
+                            <button
+                                onClick={() => {
+                                    if (chartType) {
+                                        setStep(2);
+                                        setErrorMessage('');
+                                    } else {
+                                        setErrorMessage('Proszę wybrać typ wykresu.');
+                                    }
+                                }}
+                                className="next-button"
+                            >
+                                Dalej
+                            </button>
+                        </div>
                     </div>
                 )}
 
-                <div className="modal-actions">
-                    <p className="trigger-instructions">Manually trigger selected actions</p>
-                    <button onClick={handleTriggerSelected} className="trigger-button">Trigger Now</button>
-                    <button onClick={onClose} className="close-button">Close</button>
-                </div>
-            </div>
+                {step === 2 && (
+                    <>
+                        <div className="form-group">
+                            {/* Dynamic Label for Chart Name / Map Name */}
+                            <label htmlFor="chartLabel">
+                                {chartType === 'gps' ? 'Nazwa Mapy' : 'Nazwa Wykresu'}
+                            </label>
+                            <input
+                                id="chartLabel"
+                                type="text"
+                                value={chartLabel}
+                                onChange={(e) => setChartLabel(e.target.value)}
+                            />
+                        </div>
 
-            {selectedAction && (
-                <div className="modal">
-                    <div className="modal-content action-details-modal">
-                        <h3>Action Details</h3>
-                        {!isEditing ? (
-                            <div>
-                                {selectedAction.actionType === 'normal' ? (
-                                    <ul className="action-details-list">
-                                        <li><strong>Name:</strong> {selectedAction.action_and_publisher_name}</li>
-                                        <li><strong>Listen Topic:</strong> {selectedAction.listen_topic}</li>
-                                        <li><strong>Listen Message Type:</strong> {selectedAction.listen_message_type}</li>
-                                        <li><strong>Value:</strong> {selectedAction.value}</li>
-                                        <li><strong>Trigger Value:</strong> {selectedAction.trigger_val}</li>
-                                        <li><strong>Trigger Type:</strong> {selectedAction.trigger_type}</li>
-                                        <li><strong>Publish Message Type:</strong> {selectedAction.pub_message_type}</li>
-                                        <li><strong>Trigger Text:</strong> {selectedAction.trigger_text}</li>
-                                        <li><strong>Data Validity (ms):</strong> {selectedAction.data_validity_ms}</li>
-                                        <li><strong>Publication Method:</strong> {selectedAction.publication_method}</li>
-                                    </ul>
-                                ) : (
-                                    <ul className="action-details-list">
-                                        <li><strong>Name:</strong> {selectedAction.action_and_publisher_name}</li>
-                                        <li><strong>Listen Topics:</strong> {selectedAction.listen_topics.join(', ')}</li>
-                                        <li><strong>Logic Expression:</strong> {selectedAction.logic_expression}</li>
-                                        <li><strong>Trigger Text:</strong> {selectedAction.trigger_text}</li>
-                                        <li><strong>Publication Method:</strong> {selectedAction.publication_method}</li>
-                                    </ul>
-                                )}
-                                <div className="action-details-footer">
-                                    <button onClick={closeActionDetailsModal} className="close-details-button">Close</button>
-                                    <button onClick={handleEditToggle} className="edit-button">Edit</button>
+                        {chartType !== 'gps' && (
+                            <>
+                                <div className="form-group">
+                                    <label htmlFor="topic">Wybierz Temat</label>
+                                    <div className="select-with-icon">
+                                        {selectedTopicManualInput ? (
+                                            <input
+                                                id="topicInput"
+                                                type="text"
+                                                value={selectedTopic.name}
+                                                onChange={(e) =>
+                                                    setSelectedTopic({
+                                                        ...selectedTopic,
+                                                        name: e.target.value,
+                                                    })
+                                                }
+                                            />
+                                        ) : (
+                                            <select
+                                                id="topic"
+                                                value={selectedTopic.name}
+                                                onChange={(e) => {
+                                                    const topic = topics.find(
+                                                        (t) => t.name === e.target.value
+                                                    );
+                                                    setSelectedTopic({
+                                                        name: topic.name,
+                                                        type: topic.type,
+                                                    });
+                                                }}
+                                            >
+                                                <option value="" disabled>
+                                                    Wybierz temat
+                                                </option>
+                                                {topics.map((topic) => (
+                                                    <option key={topic.name} value={topic.name}>
+                                                        {topic.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        )}
+                                        <button
+                                            type="button"
+                                            className="icon"
+                                            onClick={() =>
+                                                setSelectedTopicManualInput(!selectedTopicManualInput)
+                                            }
+                                        >
+                                            &#9998;
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
-                        ) : (
-                            <form onSubmit={handleEditSubmit} className="edit-form">
-                                <label>
-                                    New Name:
-                                    <input
-                                        type="text"
-                                        name="new_action_and_publisher_name"
-                                        value={editForm.new_action_and_publisher_name}
-                                        onChange={handleEditChange}
-                                        required
-                                    />
-                                </label>
-                                {selectedAction.actionType === 'normal' ? (
-                                    <>
-                                        <label>
-                                            Listen Topic:
+
+                                <div className="form-group">
+                                    <label htmlFor="chartUnit">Jednostka</label>
+                                    <div className="select-with-icon">
+                                        {selectedUnitManualInput ? (
                                             <input
+                                                id="chartUnitInput"
                                                 type="text"
-                                                name="listen_topic"
-                                                value={editForm.listen_topic}
-                                                onChange={handleEditChange}
-                                                required
+                                                value={selectedUnit}
+                                                onChange={(e) => setSelectedUnit(e.target.value)}
                                             />
-                                        </label>
-                                        <label>
-                                            Listen Message Type:
-                                            <input
-                                                type="text"
-                                                name="listen_message_type"
-                                                value={editForm.listen_message_type}
-                                                onChange={handleEditChange}
-                                                required
-                                            />
-                                        </label>
-                                        <label>
-                                            Value:
-                                            <input
-                                                type="text"
-                                                name="value"
-                                                value={editForm.value}
-                                                onChange={handleEditChange}
-                                                required
-                                            />
-                                        </label>
-                                        <label>
-                                            Trigger Value:
-                                            <input
-                                                type="text"
-                                                name="trigger_val"
-                                                value={editForm.trigger_val}
-                                                onChange={handleEditChange}
-                                                required
-                                            />
-                                        </label>
-                                        <label>
-                                            Trigger Type:
-                                            <input
-                                                type="text"
-                                                name="trigger_type"
-                                                value={editForm.trigger_type}
-                                                onChange={handleEditChange}
-                                                required
-                                            />
-                                        </label>
-                                        <label>
-                                            Publish Message Type:
-                                            <input
-                                                type="text"
-                                                name="pub_message_type"
-                                                value={editForm.pub_message_type}
-                                                onChange={handleEditChange}
-                                                required
-                                            />
-                                        </label>
-                                        <label>
-                                            Trigger Text:
-                                            <input
-                                                type="text"
-                                                name="trigger_text"
-                                                value={editForm.trigger_text}
-                                                onChange={handleEditChange}
-                                                required
-                                            />
-                                        </label>
-                                        <label>
-                                            Data Validity (ms):
-                                            <input
-                                                type="number"
-                                                name="data_validity_ms"
-                                                value={editForm.data_validity_ms}
-                                                onChange={handleEditChange}
-                                                required
-                                                min="0"
-                                            />
-                                        </label>
-                                        <label>
-                                            Publication Method (0-6):
-                                            <input
-                                                type="number"
-                                                name="publication_method"
-                                                value={editForm.publication_method}
-                                                onChange={handleEditChange}
-                                                required
-                                                min="0"
-                                                max="6"
-                                            />
-                                        </label>
-                                    </>
-                                ) : (
-                                    <>
-                                        <label>
-                                            Listen Topics (comma-separated):
-                                            <input
-                                                type="text"
-                                                name="listen_topics"
-                                                value={editForm.listen_topics.join(', ')}
-                                                onChange={handleEditChange}
-                                                required
-                                            />
-                                        </label>
-                                        <label>
-                                            Logic Expression:
-                                            <input
-                                                type="text"
-                                                name="logic_expression"
-                                                value={editForm.logic_expression}
-                                                onChange={handleEditChange}
-                                                required
-                                            />
-                                        </label>
-                                        <label>
-                                            Trigger Text:
-                                            <input
-                                                type="text"
-                                                name="trigger_text"
-                                                value={editForm.trigger_text}
-                                                onChange={handleEditChange}
-                                                required
-                                            />
-                                        </label>
-                                        <label>
-                                            Publication Method (0-6):
-                                            <input
-                                                type="number"
-                                                name="publication_method"
-                                                value={editForm.publication_method}
-                                                onChange={handleEditChange}
-                                                required
-                                                min="0"
-                                                max="6"
-                                            />
-                                        </label>
-                                    </>
-                                )}
-                                <div className="form-buttons">
-                                    <button type="submit" className="save-button">Save</button>
-                                    <button type="button" onClick={handleEditToggle} className="cancel-button">Cancel</button>
+                                        ) : (
+                                            <select
+                                                id="chartUnit"
+                                                value={selectedUnit}
+                                                onChange={(e) => setSelectedUnit(e.target.value)}
+                                            >
+                                                <option value="" disabled>
+                                                    Wybierz jednostkę
+                                                </option>
+                                                {unitsSI.map((unit) => (
+                                                    <option key={unit} value={unit}>
+                                                        {unit}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        )}
+                                        <button
+                                            type="button"
+                                            className="icon"
+                                            onClick={() =>
+                                                setSelectedUnitManualInput(!selectedUnitManualInput)
+                                            }
+                                        >
+                                            &#9998;
+                                        </button>
+                                    </div>
                                 </div>
-                            </form>
+
+                                <div className="form-group">
+                                    <label htmlFor="nestedMessage">Wybierz Ścieżkę Zagnieżdżoną</label>
+                                    <div className="select-with-icon">
+                                        {selectedPathManualInput ? (
+                                            <input
+                                                id="nestedMessageInput"
+                                                type="text"
+                                                value={selectedPath}
+                                                onChange={(e) => setSelectedPath(e.target.value)}
+                                            />
+                                        ) : (
+                                            <select
+                                                id="nestedMessage"
+                                                value={selectedPath}
+                                                onChange={(e) => setSelectedPath(e.target.value)}
+                                            >
+                                                <option value="" disabled>
+                                                    Wybierz ścieżkę
+                                                </option>
+                                                {nestedPaths.map((path) => (
+                                                    <option key={path} value={path}>
+                                                        {path}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        )}
+                                        <button
+                                            type="button"
+                                            className="icon"
+                                            onClick={() =>
+                                                setSelectedPathManualInput(!selectedPathManualInput)
+                                            }
+                                        >
+                                            &#9998;
+                                        </button>
+                                    </div>
+                                </div>
+                            </>
                         )}
-                    </div>
-                </div>
-            )}
+
+                        {errorMessage && <p className="error-message">{errorMessage}</p>}
+
+                        <div className="modal-actions">
+                            <button onClick={handleCreate} className="create-button">
+                                {chartType === 'gps' ? 'Dodaj Mapę' : 'Utwórz Wykres'}
+                            </button>
+                            <button onClick={handleBack} className="back-button">
+                                Wstecz
+                            </button>
+                            <button onClick={onClose} className="cancel-button">
+                                Anuluj
+                            </button>
+                        </div>
+                    </>
+                )}
+            </div>
         </div>
     );
 };
 
-export default ActionModal;
+export default ChartModal;
