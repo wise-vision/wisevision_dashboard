@@ -1,3 +1,13 @@
+#
+#  Copyright (C) 2025 wisevision
+#
+#  SPDX-License-Identifier: MPL-2.0
+#
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at https://mozilla.org/MPL/2.0/.
+#
+
 from flask import jsonify, Blueprint, request
 from ....server.service.ros2_manager import ros2_manager
 from rosidl_runtime_py.utilities import get_message
