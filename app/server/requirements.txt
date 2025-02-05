@@ -1,7 +1,7 @@
 flask==2.2.5
 Flask-SocketIO==5.3.2
 python-socketio==5.7.2
-eventlet==0.33.4
+eventlet==0.39.0
 flask-cors
 Werkzeug==2.2.3
 Flask-Testing==0.8.1
