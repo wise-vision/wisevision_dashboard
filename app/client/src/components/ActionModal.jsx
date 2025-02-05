@@ -8,9 +8,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-import React, { useState, useEffect } from 'react';
-import '../styles/ChartModal.css';
-import penIcon from '../assets/images/pen.png';
+import React, { useState, useEffect, useRef } from 'react';
+import '../styles/ActionModal.css';
 
 // Make sure that this GIF is animated
 import loadingGif from '../assets/images/loadingGif.gif';
