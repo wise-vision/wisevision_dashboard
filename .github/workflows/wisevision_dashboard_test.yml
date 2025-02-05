@@ -29,6 +29,8 @@ jobs:
         python3 -m pip install --upgrade pip
         pip install -r app/server/requirements.txt
 
+    - name: Set PYTHONPATH environment variable
+      run: export PYTHONPATH=$(pwd)/wisevision_dashboard_ws
 
     - name: Run tests
       run: |
@@ -38,4 +40,4 @@ jobs:
     - name: Clean up workspace
       if: always()
       run: |
-        sudo rm -rf wisevision_dashboard_ws
+        rm -rf wisevision_dashboard_ws
