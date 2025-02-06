@@ -41,3 +41,4 @@ jobs:
       if: always()
       run: |
         sudo rm -rf wisevision_dashboard_ws
+        sudo rm -rf .pytest_cache
