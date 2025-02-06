@@ -40,4 +40,4 @@ jobs:
     - name: Clean up workspace
       if: always()
       run: |
-        rm -rf wisevision_dashboard_ws
+        sudo rm -rf wisevision_dashboard_ws
