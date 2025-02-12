@@ -11,7 +11,7 @@ on:
 
 jobs:
   test:
-    runs-on: self-hosted
+    runs-on: wisevision-runner
 
     container:
       image: ros:humble-ros-base
