@@ -1,8 +1,20 @@
 #!/usr/bin/env python3
+#
+#  Copyright (C) 2025 wisevision
+#
+#  SPDX-License-Identifier: MPL-2.0
+#
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at https://mozilla.org/MPL/2.0/.
+#
+
 
 import rclpy
 from rclpy.node import Node
 from rclpy.serialization import deserialize_message
+from rclpy.executors import MultiThreadedExecutor
+from concurrent.futures import Future
 from ..data_object.message_objects import ROS2Topic, ROS2Topics, ROS2Service, ROS2Services
 from dateutil import parser  
 from rosidl_runtime_py.utilities import get_message, get_service
@@ -12,9 +24,6 @@ import array
 import numpy as np
 
 def ros_message_to_dict(msg):
-    """
-    Rekurencyjnie konwertuje wiadomość ROS2 na słownik i usuwa prefiksy `_` z nazw pól.
-    """
     if not hasattr(msg, '__slots__'):
         return msg
 
@@ -36,8 +45,20 @@ class ROS2Manager:
         rclpy.init()
         self.node = Node('ros2_topic_list_node')
         self.subscriber_node = Node('ros2_subscriber_node')
-        self.notification_subscriber = None
-        self.subscription_created = False 
+        self.executor = MultiThreadedExecutor()
+        self.executor.add_node(self.node)
+        self.executor.add_node(self.subscriber_node)
+        self.stop_requested = False
+
+    def spin(self):
+        try:
+            print("Starting Executor...")
+            while rclpy.ok() and not self.stop_requested:
+                self.executor.spin_once(timeout_sec=0.1)
+        except KeyboardInterrupt:
+            print("Executor interrupted by KeyboardInterrupt.")
+        finally:
+            self.shutdown()
 
     def get_topic_list(self):
         topics = self.node.get_topic_names_and_types()
@@ -56,7 +77,7 @@ class ROS2Manager:
         return ros_services
     
     def replace_percent_with_slash(self, topic_name):
-        return topic_name.replace('%', '/')
+        return topic_name.replace('%2F', '/')
     
     
     def serialize_ros_message_sub(self, msg):
@@ -98,27 +119,26 @@ class ROS2Manager:
     
     def get_topic_message(self, topic_name, topic_type):
         msg_type = get_message(topic_type)
-        topic_name = self.replace_percent_with_slash(topic_name)
         if not msg_type:
             raise ImportError(f"Could not find message type {topic_type}")
 
-        message_received = None
+        message_future = Future()
 
         def callback(msg):
-            nonlocal message_received
-            message_received = msg
+            if not message_future.done():
+                message_future.set_result(msg)
 
         subscription = self.node.create_subscription(msg_type, topic_name, callback, QoSProfile(depth=1))
 
         try:
-            timeout_sec = 5.0
-            end_time = self.node.get_clock().now().to_msg().sec + timeout_sec
-            while rclpy.ok() and self.node.get_clock().now().to_msg().sec < end_time:
-                rclpy.spin_once(self.node, timeout_sec=1)
-                if message_received is not None:
-                    serialized_message = self.serialize_ros_message_sub(message_received)
-                    return serialized_message
-            return {"error": "No message arrived for 5s"}
+            rclpy.spin_until_future_complete(self.node, message_future, timeout_sec=5.0)
+
+            if message_future.done():
+                serialized_message = self.serialize_ros_message_sub(message_future.result())
+                return serialized_message
+            else:
+                return {"error": "No message arrived within 5 seconds"}
+
         finally:
             self.node.destroy_subscription(subscription)
     # Automatic Action services
@@ -311,25 +331,25 @@ class ROS2Manager:
         msg_type = get_message('wisevision_msgs/msg/GpsDevicesPublisher')
         topic_name = self.replace_percent_with_slash('/gps_devices_data')
         if not msg_type:
-            raise ImportError(f"Could not find message type {'wisevision_msgs/msg/GpsDevicesPublisher'}")
+            raise ImportError(f"Could not find message type 'wisevision_msgs/msg/GpsDevicesPublisher'")
 
-        message_received = None
+        message_future = Future()
 
         def callback(msg):
-            nonlocal message_received
-            message_received = msg
+            if not message_future.done():
+                message_future.set_result(msg)
 
         subscription = self.node.create_subscription(msg_type, topic_name, callback, QoSProfile(depth=1))
 
         try:
-            timeout_sec = 60.0
-            end_time = self.node.get_clock().now().to_msg().sec + timeout_sec
-            while rclpy.ok() and self.node.get_clock().now().to_msg().sec < end_time:
-                rclpy.spin_once(self.node, timeout_sec=1)
-                if message_received is not None:
-                    serialized_message = self.serialize_ros_message_sub(message_received)
-                    return serialized_message
-            return {"error": "No message arrived for 60s"}
+            rclpy.spin_until_future_complete(self.node, message_future, timeout_sec=60.0)
+
+            if message_future.done():
+                serialized_message = self.serialize_ros_message_sub(message_future.result())
+                return serialized_message
+            else:
+                return {"error": "No message arrived within 60 seconds"}
+
         finally:
             self.node.destroy_subscription(subscription)
 
@@ -497,7 +517,6 @@ class ROS2Manager:
 
         request = service_type.Request()
         topic_name = params.get('topic_name')
-        topic_name = self.replace_percent_with_slash(topic_name)
         request.topic_name = topic_name
         request.message_type = 'any'
         request.number_of_msgs = params.get('number_of_msgs', 0)
@@ -593,9 +612,7 @@ class ROS2Manager:
     
     # END OF: Blackbox services
 
-
     def get_topic_message_type(self, topic_name):
-        topic_name = self.replace_percent_with_slash(topic_name)
         topics = self.node.get_topic_names_and_types()
         for name, types in topics:
             if name == topic_name:
@@ -688,7 +705,16 @@ class ROS2Manager:
         return field_type in primitive_types
     # END OF: Get nested message fields
        
+    def request_stop(self):
+        print("Stop requested for ROS2 executor.")
+        self.stop_requested = True
+
     def shutdown(self):
+        print("Shutting down ROS2...")
+        self.executor.shutdown()
+        self.node.destroy_node()
+        self.subscriber_node.destroy_node()
         rclpy.shutdown()
+        print("ROS2 shutdown complete.")
 
 ros2_manager = ROS2Manager()

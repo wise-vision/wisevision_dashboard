@@ -1,3 +1,13 @@
+/*
+ * Copyright (C) 2025 wisevision
+ *
+ * SPDX-License-Identifier: MPL-2.0
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
 import React, { useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import '../styles/CreateReportModal.css';
@@ -6,7 +16,7 @@ const CreateReportModal = ({ isOpen, onClose }) => {
     const [topics, setTopics] = useState([]);
     const [selectedTopic, setSelectedTopic] = useState('');
     const [reportName, setReportName] = useState('');
-    const [errorMessage, setErrorMessage] = useState('');
+    const [errorMessage, setErrorMessage] = useState(''); // Dodano dla obsługi błędów
 
     useEffect(() => {
         if (isOpen) {
@@ -30,7 +40,7 @@ const CreateReportModal = ({ isOpen, onClose }) => {
 
     const handleGenerateReport = async () => {
         try {
-            setErrorMessage('');
+            setErrorMessage(''); // Resetujemy komunikat błędu na początku
             if (!selectedTopic) {
                 setErrorMessage('Please select a topic.');
                 return;

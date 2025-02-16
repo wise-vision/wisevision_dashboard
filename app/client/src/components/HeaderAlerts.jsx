@@ -1,3 +1,13 @@
+/*
+ * Copyright (C) 2025 wisevision
+ *
+ * SPDX-License-Identifier: MPL-2.0
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import blueBellIcon from '../assets/images/blueBell.png';
 import yellowBellIcon from '../assets/images/yellowBell.png';
@@ -37,7 +47,7 @@ const HeaderAlerts = () => {
 
     const soundEnabledRef = useRef(soundEnabled);
     const timeoutRef = useRef(null);
-    const isFetchingRef = useRef(false);
+    const isFetchingRef = useRef(false); // Flaga wskazująca, czy aktualnie trwają zapytanie
 
     useEffect(() => {
         soundEnabledRef.current = soundEnabled;
