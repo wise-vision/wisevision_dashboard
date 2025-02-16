@@ -1,5 +1,5 @@
 repositories:
-  lora_msgs:
+  wisevision_msgs:
     type: git
-    url: https://github.com/wise-vision/lora_msgs.git
-    version: dev
+    url: https://github.com/wise-vision/wisevision_msgs.git
+    version: main
