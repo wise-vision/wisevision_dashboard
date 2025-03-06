@@ -8,12 +8,42 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { CiFilter } from "react-icons/ci";
 import '../styles/CreateActionModal.css';
+import FilterTopicsModal from './FilterTopicsModal';
 
 const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
     const [isClosing, setIsClosing] = useState(false);
     const [actionType, setActionType] = useState(null); // 'action' or 'combined'
+    const [selectedTopic, setSelectedTopic] = useState({
+        name: '',
+        type: '',
+    });
+    // State variables to track manual input mode
+    const [messageStructure, setMessageStructure] = useState({});
+    const [nestedPaths, setNestedPaths] = useState([]);
+    const [selectedPath, setSelectedPath] = useState('');
+    const [selectedPathManualInput, setSelectedPathManualInput] = useState(false);
+
+    // Filter stuff
+    const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+    const [selectedFilters, setSelectedFilters] = useState({
+        name: "",
+        messageTypes: [],
+        namespaces: []
+    });
+
+    const handleFiltersApply = (filters) => {
+        setSelectedFilters(filters);
+    };
+
+    const [publicationOptions, setPublicationOptions] = useState({
+        email: false,
+        push: false,
+        webPush: false
+    });
+
 
     // State for single action
     const [actionData, setActionData] = useState({
@@ -26,7 +56,7 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
         pubMessageType: '',
         triggerText: '',
         dataValidityMs: '',
-        publicationMethod: 0 // Dodane pole
+        publicationMethod: 0
     });
 
     // State for combined action
@@ -41,18 +71,31 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
     });
 
     const [topics, setTopics] = useState([]);
-    const [messageStructure, setMessageStructure] = useState({});
-    const [fields, setFields] = useState([]);
     const [message, setMessage] = useState('');
-    const [isLoadingFields, setIsLoadingFields] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
             const fetchTopics = async () => {
                 try {
-                    const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/topics`);
+                    const queryParams = new URLSearchParams();
+                    if (selectedFilters.name) {
+                        queryParams.append("name_contains", selectedFilters.name);
+                    }
+                    if (selectedFilters.messageTypes.length > 0) {
+                        selectedFilters.messageTypes.forEach(type => queryParams.append("message_types", type));
+                    }
+                    if (selectedFilters.namespaces.length > 0) {
+                        selectedFilters.namespaces.forEach(ns => queryParams.append("message_namespaces", ns));
+                    }
+                    const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/topics?${queryParams.toString()}`);
                     const data = await response.json();
                     setTopics(data);
+                    if (data[0]) {
+                        setSelectedTopic({
+                            name: data[0].name,
+                            type: data[0].type,
+                        });
+                    }
                 } catch (error) {
                     console.error('Error fetching topics:', error);
                 }
@@ -60,41 +103,78 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
 
             fetchTopics();
         }
-    }, [isOpen]);
+    }, [isOpen, selectedFilters]);
 
     useEffect(() => {
-        if (actionData.listenMessageType) {
-            const fetchMessageStructure = async () => {
-                setIsLoadingFields(true);
-                try {
-                    const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/message_structure/${actionData.listenMessageType}`);
-                    const data = await response.json();
-                    setMessageStructure(data);
-                } catch (error) {
-                    console.error('Error fetching message structure:', error);
-                    setMessageStructure({});
-                    setFields([]);
-                } finally {
-                    setIsLoadingFields(false);
-                }
-            };
-
-            fetchMessageStructure();
-        } else {
-            // Reset message structure and fields if listenMessageType is empty
+        if (!actionData.listenTopic) {
             setMessageStructure({});
-            setFields([]);
+            setNestedPaths([]); // Reset nested paths, when topic is not selected
+            setSelectedPath("");
+            return;
         }
-    }, [actionData.listenMessageType]);
+
+        const fetchMessageStructure = async () => {
+            try {
+                const encodedType = encodeURIComponent(selectedTopic.type);
+                const response = await fetch(
+                    `${process.env.REACT_APP_API_BASE_URL}/api/message_structure/${encodedType}`
+                );
+                const data = await response.json();
+                setMessageStructure(data);
+            } catch (error) {
+                console.error('Error fetching message structure:', error);
+                setMessageStructure({});
+            }
+        };
+
+        if (selectedTopic.type) {
+            fetchMessageStructure();
+        }
+    }, [actionData.listenTopic, selectedTopic]);
+
+    const extractFields = useCallback((structure, parent = '') => {
+        let fields = [];
+        for (let key in structure) {
+            const value = structure[key];
+            const fullPath = parent ? `${parent}.${key}` : key;
+
+            if (Array.isArray(value)) {
+                if (value.length > 0 && typeof value[0] === 'object') {
+                    fields = fields.concat(extractFields(value[0], fullPath + '[]'));
+                } else {
+                    fields.push(fullPath + '[]');
+                }
+            } else if (typeof value === 'object' && value !== null) {
+                fields = fields.concat(extractFields(value, fullPath));
+            } else {
+                fields.push(fullPath);
+            }
+        }
+        return fields;
+    }, []);
 
     useEffect(() => {
         if (messageStructure && Object.keys(messageStructure).length > 0) {
             const availableFields = extractFields(messageStructure);
-            setFields(availableFields);
+            setNestedPaths(availableFields);
+            if (availableFields.length > 0) {
+                setSelectedPath(availableFields[0]);
+            }
         } else {
-            setFields([]);
+            setNestedPaths([]);
+            setSelectedPath("");
         }
-    }, [messageStructure]);
+    }, [messageStructure, extractFields]);
+
+    useEffect(() => {
+        if (!isOpen) {
+            setPublicationOptions({
+                email: false,
+                push: false,
+                webPush: false
+            });
+        }
+    }, [isOpen]);
 
     useEffect(() => {
         if (actionType === 'combined' && isOpen) {
@@ -135,31 +215,36 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
                 publicationMethod: 0
             });
             setSelectedActions([]);
-            setFields([]);
-            setMessageStructure({});
             setMessage('');
+
+            setSelectedFilters({
+                name: "",
+                messageTypes: [],
+                namespaces: []
+            });
         }
     }, [isOpen]);
 
-    const extractFields = (structure, parent = '') => {
-        let fields = [];
-        for (let key in structure) {
-            const value = structure[key];
-            const fullPath = parent ? `${parent}.${key}` : key;
+    const handlePublicationChange = (method) => {
+        setPublicationOptions((prev) => {
+            const newOptions = { ...prev, [method]: !prev[method] };
 
-            if (Array.isArray(value)) {
-                if (value.length > 0 && typeof value[0] === 'object') {
-                    fields = fields.concat(extractFields(value[0], fullPath + '[]'));
-                } else {
-                    fields.push(fullPath + '[]');
-                }
-            } else if (typeof value === 'object' && value !== null) {
-                fields = fields.concat(extractFields(value, fullPath));
-            } else {
-                fields.push(fullPath);
-            }
-        }
-        return fields;
+            let newValue = 0;
+            if (newOptions.email && !newOptions.push && !newOptions.webPush) newValue = 0;
+            if (!newOptions.email && newOptions.push && !newOptions.webPush) newValue = 1;
+            if (!newOptions.email && !newOptions.push && newOptions.webPush) newValue = 2;
+            if (newOptions.email && newOptions.push && !newOptions.webPush) newValue = 3;
+            if (newOptions.email && !newOptions.push && newOptions.webPush) newValue = 4;
+            if (!newOptions.email && newOptions.push && newOptions.webPush) newValue = 5;
+            if (newOptions.email && newOptions.push && newOptions.webPush) newValue = 6;
+
+            setActionData((prev) => ({
+                ...prev,
+                publicationMethod: newValue
+            }));
+
+            return newOptions;
+        });
     };
 
     const handleChange = (e) => {
@@ -187,9 +272,9 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
         const dataValidityMsAsNumber = parseInt(actionData.dataValidityMs, 10);
         const publicationMethodAsNumber = parseInt(actionData.publicationMethod, 10);
 
-        // Walidacja publicationMethod
+        // Validation for publicationMethod
         if (isNaN(publicationMethodAsNumber) || publicationMethodAsNumber < 0 || publicationMethodAsNumber > 6) {
-            setMessage('Publication Method musi być liczbą w zakresie od 0 do 6.');
+            setMessage('Publication Method must be a number between 0 and 6.');
             return;
         }
 
@@ -209,7 +294,7 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
                     pub_message_type: actionData.pubMessageType,
                     trigger_text: actionData.triggerText,
                     data_validity_ms: dataValidityMsAsNumber,
-                    publication_method: publicationMethodAsNumber // Dodane pole
+                    publication_method: publicationMethodAsNumber
                 })
             });
 
@@ -238,9 +323,9 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
 
         const publicationMethodAsNumber = parseInt(combinedActionData.publicationMethod, 10);
 
-        // Walidacja publicationMethod
+        // Validation for publicationMethod
         if (isNaN(publicationMethodAsNumber) || publicationMethodAsNumber < 0 || publicationMethodAsNumber > 6) {
-            setMessage('Publication Method musi być liczbą w zakresie od 0 do 6.');
+            setMessage('Publication Method must be a number between 0 and 6.');
             return;
         }
 
@@ -249,7 +334,7 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
             logic_expression: combinedActionData.logicExpression,
             action_and_publisher_name: combinedActionData.actionAndPublisherName,
             trigger_text: combinedActionData.triggerText,
-            publication_method: publicationMethodAsNumber // Dodane pole
+            publication_method: publicationMethodAsNumber
         };
 
         try {
@@ -376,16 +461,33 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
                             />
                         </div>
                         <div className="form-group">
-                            <label>Publication Method (0-6):</label>
-                            <input
-                                type="number"
-                                name="publicationMethod"
-                                value={combinedActionData.publicationMethod}
-                                onChange={handleCombinedChange}
-                                min="0"
-                                max="6"
-                                required
-                            />
+                            <label>Publication Method:</label>
+                            <div className="checkbox-group">
+                                <label>
+                                    <input
+                                        type="checkbox"
+                                        checked={publicationOptions.email}
+                                        onChange={() => handlePublicationChange("email")}
+                                    />
+                                    Email
+                                </label>
+                                <label>
+                                    <input
+                                        type="checkbox"
+                                        checked={publicationOptions.push}
+                                        onChange={() => handlePublicationChange("push")}
+                                    />
+                                    App Push Notification
+                                </label>
+                                <label>
+                                    <input
+                                        type="checkbox"
+                                        checked={publicationOptions.webPush}
+                                        onChange={() => handlePublicationChange("webPush")}
+                                    />
+                                    Web Push Notification
+                                </label>
+                            </div>
                         </div>
                         <div className="modal-actions">
                             <button type="submit" className="add-button">Create</button>
@@ -417,40 +519,71 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
                     </div>
                     <div className="form-group">
                         <label>Listen Topic:</label>
-                        <select name="listenTopic" value={actionData.listenTopic} onChange={handleChange} required>
-                            <option value="">Select a Topic</option>
-                            {topics.map((topic) => (
-                                <option key={topic.name} value={topic.name}>
-                                    {topic.name}
+                        <div className="select-with-icon">
+                            <select
+                                name="listenTopic"
+                                value={actionData.listenTopic}
+                                onChange={(e) => {
+                                    const topic = topics.find((t) => t.name === e.target.value);
+                                    setActionData((prev) => ({ ...prev, listenTopic: topic.name }));
+                                    setSelectedTopic({
+                                        name: topic.name,
+                                        type: topic.type,
+                                    });
+                                }}
+                                required
+                            >
+                                <option value="" disabled>
+                                    Select a Topic
                                 </option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="form-group">
-                        <label>Listen Message Type:</label>
-                        <input
-                            type="text"
-                            name="listenMessageType"
-                            value={actionData.listenMessageType}
-                            onChange={handleChange}
-                            placeholder="e.g., std_msgs/String"
-                            required
-                        />
-                    </div>
-                    <div className="form-group">
-                        <label>Field to Read:</label>
-                        {isLoadingFields ? (
-                            <p>Loading fields...</p>
-                        ) : (
-                            <select name="value" value={actionData.value} onChange={handleChange} required>
-                                <option value="">Select a Field</option>
-                                {fields.map((field, index) => (
-                                    <option key={index} value={field}>
-                                        {field}
+                                {topics.map((topic) => (
+                                    <option key={topic.name} value={topic.name}>
+                                        {topic.name}
                                     </option>
                                 ))}
                             </select>
-                        )}
+
+                            {/* Filter button */}
+                            <button type="button" className="icon" onClick={() => setIsFilterModalOpen(true)}>
+                                <CiFilter className="filter-icon" />
+                            </button>
+                        </div>
+                    </div>
+                    <div className="form-group">
+                        <label htmlFor="nestedMessage">Field to Read</label>
+                        <div className="select-with-icon">
+                            {selectedPathManualInput ? (
+                                <input
+                                    id="nestedMessageInput"
+                                    type="text"
+                                    value={selectedPath}
+                                    onChange={(e) => setSelectedPath(e.target.value)}
+                                />
+                            ) : (
+                                <select
+                                    id="nestedMessage"
+                                    value={selectedPath}
+                                    onChange={(e) => setSelectedPath(e.target.value)}
+                                    required
+                                >
+                                    <option value="" disabled>
+                                        Select a Field
+                                    </option>
+                                    {nestedPaths.map((path) => (
+                                        <option key={path} value={path}>
+                                            {path}
+                                        </option>
+                                    ))}
+                                </select>
+                            )}
+                            <button
+                                type="button"
+                                className="icon"
+                                onClick={() => setSelectedPathManualInput(!selectedPathManualInput)}
+                            >
+                                &#9998;
+                            </button>
+                        </div>
                     </div>
                     <div className="form-group">
                         <label>Trigger Value:</label>
@@ -477,16 +610,33 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
                         <input type="number" name="dataValidityMs" value={actionData.dataValidityMs} onChange={handleChange} required />
                     </div>
                     <div className="form-group">
-                        <label>Publication Method (0-6):</label>
-                        <input
-                            type="number"
-                            name="publicationMethod"
-                            value={actionData.publicationMethod}
-                            onChange={handleChange}
-                            min="0"
-                            max="6"
-                            required
-                        />
+                        <label>Publication Method:</label>
+                        <div className="checkbox-group">
+                            <label>
+                                <input
+                                    type="checkbox"
+                                    checked={publicationOptions.email}
+                                    onChange={() => handlePublicationChange("email")}
+                                />
+                                Email
+                            </label>
+                            <label>
+                                <input
+                                    type="checkbox"
+                                    checked={publicationOptions.push}
+                                    onChange={() => handlePublicationChange("push")}
+                                />
+                                App Push Notification
+                            </label>
+                            <label>
+                                <input
+                                    type="checkbox"
+                                    checked={publicationOptions.webPush}
+                                    onChange={() => handlePublicationChange("webPush")}
+                                />
+                                Web Push Notification
+                            </label>
+                        </div>
                     </div>
                     <div className="modal-actions">
                         <button type="submit" className="add-button">Create</button>
@@ -495,6 +645,11 @@ const CreateActionModal = ({ isOpen, onClose, onActionCreated }) => {
                     </div>
                 </form>
             </div>
+            <FilterTopicsModal
+                isOpen={isFilterModalOpen}
+                onClose={() => setIsFilterModalOpen(false)}
+                onApplyFilters={handleFiltersApply}
+            />
         </div>
     );
 };

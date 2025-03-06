@@ -8,9 +8,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { CiFilter } from "react-icons/ci";
+import FilterTopicsModal from './FilterTopicsModal';
 import '../styles/ChartModal.css';
-import penIcon from '../assets/images/pen.png';
 
 const unitsSI = ['°C', 'kW', 'V', 'A', 'W', 'Hz', 'Pa'];
 
@@ -28,8 +29,20 @@ const ChartModal = ({ onClose, onAddChart }) => {
     const [selectedPath, setSelectedPath] = useState('');
     const [step, setStep] = useState(1);
 
+    // State variables to track filter modal
+    const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+    const [selectedFilters, setSelectedFilters] = useState({
+        name: "",
+        messageTypes: [],
+        namespaces: []
+    });
+
+    const handleFiltersApply = (filters) => {
+        setSelectedFilters(filters);
+    };
+
     // State variables to track manual input mode
-    const [selectedTopicManualInput, setSelectedTopicManualInput] = useState(false);
+    const [selectedTopicManualInput] = useState(false);
     const [selectedUnitManualInput, setSelectedUnitManualInput] = useState(false);
     const [selectedPathManualInput, setSelectedPathManualInput] = useState(false);
 
@@ -37,7 +50,17 @@ const ChartModal = ({ onClose, onAddChart }) => {
     useEffect(() => {
         const fetchTopics = async () => {
             try {
-                const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/topics`);
+                const queryParams = new URLSearchParams();
+                    if (selectedFilters.name) {
+                        queryParams.append("name_contains", selectedFilters.name);
+                    }
+                    if (selectedFilters.messageTypes.length > 0) {
+                        selectedFilters.messageTypes.forEach(type => queryParams.append("message_types", type));
+                    }
+                    if (selectedFilters.namespaces.length > 0) {
+                        selectedFilters.namespaces.forEach(ns => queryParams.append("message_namespaces", ns));
+                    }
+                    const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/topics?${queryParams.toString()}`);
                 const result = await response.json();
                 setTopics(result);
                 if (result[0] && chartType !== 'gps') {
@@ -51,7 +74,28 @@ const ChartModal = ({ onClose, onAddChart }) => {
             }
         };
         fetchTopics();
-    }, [chartType]);
+    }, [chartType, selectedFilters]);
+
+    const extractFields = useCallback((structure, parent = '') => {
+        let fields = [];
+        for (let key in structure) {
+            const value = structure[key];
+            const fullPath = parent ? `${parent}.${key}` : key;
+    
+            if (Array.isArray(value)) {
+                if (value.length > 0 && typeof value[0] === 'object') {
+                    fields = fields.concat(extractFields(value[0], fullPath + '[]'));
+                } else {
+                    fields.push(fullPath + '[]');
+                }
+            } else if (typeof value === 'object' && value !== null) {
+                fields = fields.concat(extractFields(value, fullPath));
+            } else {
+                fields.push(fullPath);
+            }
+        }
+        return fields;
+    }, []);
 
     // Fetch message structure and available numeric paths
     useEffect(() => {
@@ -64,45 +108,20 @@ const ChartModal = ({ onClose, onAddChart }) => {
                     );
                     const result = await response.json();
 
-                    const paths = [];
-                    const traverse = (obj, currentPath = '') => {
-                        for (let key in obj) {
-                            const value = obj[key];
-                            const path = currentPath ? `${currentPath}.${key}` : key;
-
-                            if (typeof value === 'object' && !Array.isArray(value)) {
-                                traverse(value, path);
-                            } else if (
-                                typeof value === 'string' &&
-                                [
-                                    'int8',
-                                    'int16',
-                                    'int32',
-                                    'int64',
-                                    'uint8',
-                                    'uint16',
-                                    'uint32',
-                                    'uint64',
-                                    'float',
-                                    'double',
-                                ].includes(value)
-                            ) {
-                                paths.push(path);
-                            }
-                        }
-                    };
-                    traverse(result);
+                    const paths = extractFields(result);
                     setNestedPaths(paths);
-                    if (paths[0]) {
+
+                    if (paths.length > 0) {
                         setSelectedPath(paths[0]);
                     }
                 } catch (error) {
                     console.error('Error fetching message structure:', error);
                 }
             };
+
             fetchMessageStructure();
         }
-    }, [step, selectedTopic, chartType]);
+    }, [step, selectedTopic, chartType, extractFields]);
 
     const handleChartTypeSelection = (type) => {
         setChartType(type);
@@ -162,12 +181,6 @@ const ChartModal = ({ onClose, onAddChart }) => {
 
             onAddChart(newChart);
             onClose();
-        }
-    };
-
-    const handleNext = () => {
-        if (step === 2) {
-            handleCreate();
         }
     };
 
@@ -276,38 +289,35 @@ const ChartModal = ({ onClose, onAddChart }) => {
                                                 }
                                             />
                                         ) : (
-                                            <select
-                                                id="topic"
-                                                value={selectedTopic.name}
-                                                onChange={(e) => {
-                                                    const topic = topics.find(
-                                                        (t) => t.name === e.target.value
-                                                    );
-                                                    setSelectedTopic({
-                                                        name: topic.name,
-                                                        type: topic.type,
-                                                    });
-                                                }}
-                                            >
-                                                <option value="" disabled>
-                                                    Select topic
-                                                </option>
-                                                {topics.map((topic) => (
-                                                    <option key={topic.name} value={topic.name}>
-                                                        {topic.name}
+                                            <div className='select-with-icon'>
+                                                <select
+                                                    id="topic"
+                                                    value={selectedTopic.name}
+                                                    onChange={(e) => {
+                                                        const topic = topics.find(
+                                                            (t) => t.name === e.target.value
+                                                        );
+                                                        setSelectedTopic({
+                                                            name: topic.name,
+                                                            type: topic.type,
+                                                        });
+                                                    }}
+                                                >
+                                                    <option value="" disabled>
+                                                        Select topic
                                                     </option>
-                                                ))}
-                                            </select>
+                                                    {topics.map((topic) => (
+                                                        <option key={topic.name} value={topic.name}>
+                                                            {topic.name}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                {/* Filter button */}
+                                                <button type="button" className="icon" onClick={() => setIsFilterModalOpen(true)}>
+                                                    <CiFilter className="filter-icon" />
+                                                </button>
+                                            </div>
                                         )}
-                                        <button
-                                            type="button"
-                                            className="icon"
-                                            onClick={() =>
-                                                setSelectedTopicManualInput(!selectedTopicManualInput)
-                                            }
-                                        >
-                                            &#9998;
-                                        </button>
                                     </div>
                                 </div>
 
@@ -405,6 +415,11 @@ const ChartModal = ({ onClose, onAddChart }) => {
                     </>
                 )}
             </div>
+            <FilterTopicsModal
+                isOpen={isFilterModalOpen}
+                onClose={() => setIsFilterModalOpen(false)}
+                onApplyFilters={handleFiltersApply}
+            />
         </div>
     );
 };

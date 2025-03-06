@@ -60,13 +60,81 @@ class ROS2Manager:
         finally:
             self.shutdown()
 
-    def get_topic_list(self):
+    def filter_topics(self, topics, default_filter=True, message_types=None, message_namespaces=None, name_contains=None):
+        if message_types is None:
+            message_types = []
+        if message_namespaces is None:
+            message_namespaces = []
+        if name_contains is None:
+            name_contains = []
+
+        default_topics = {"/parameter_events", "/rosout", "/notifications"}
+
+        filtered_topics = []
+        for name, topic_type in topics:
+            topic_type = topic_type.strip()
+
+            if default_filter and name in default_topics:
+                continue
+
+            namespace = "/".join(name.split("/")[:-1])
+
+            match_msg_type = not message_types or topic_type in message_types
+            match_namespace = not message_namespaces or any(namespace.startswith(ns) for ns in message_namespaces)
+            match_name = not name_contains or any(substring in name for substring in name_contains)
+
+            if match_msg_type and match_namespace and match_name:
+                filtered_topics.append((name, topic_type))
+
+        return filtered_topics
+
+    def get_topic_list(self, default_filter=True, message_types=None, message_namespaces=None, name_contains=None):
         topics = self.node.get_topic_names_and_types()
-        ros_topics = ROS2Topics()
-        for name, types in topics:
-            topic_type = types[0] if types else 'UnknownType'
-            ros_topics.add_topic(ROS2Topic(name, topic_type))
-        return ros_topics
+        topics = [(name, types[0] if types else "UnknownType") for name, types in topics]
+        return self.filter_topics(topics, default_filter, message_types, message_namespaces, name_contains)
+    
+    
+    def get_topics_types(self):
+        topics = self.node.get_topic_names_and_types()
+        topic_types = set()
+
+        for _, types in topics:
+            if types:
+                topic_types.update(types)
+
+        return list(topic_types) 
+    
+    def get_namespaces(self):
+        """
+        Retrieves unique namespaces of available topics in ROS2
+        and returns them as a hierarchical dictionary structure.
+
+        :return: A dictionary representing the hierarchical structure of namespaces, e.g.:
+        {
+            "ns_1": {
+                "ns_2": {
+                    "ns_3": {},
+                    "ns_4": {}
+                }
+            }
+        }
+        """
+        topics = self.node.get_topic_names_and_types()
+        namespace_tree = {}
+
+        for name, _ in topics:
+            namespace_parts = name.strip("/").split("/")[:-1]
+            
+            if not namespace_parts:
+                continue
+
+            current_level = namespace_tree
+            for part in namespace_parts:
+                if part not in current_level:
+                    current_level[part] = {} 
+                current_level = current_level[part]
+
+        return namespace_tree
 
     def get_service_list(self):
         services = self.node.get_service_names_and_types()
@@ -618,9 +686,71 @@ class ROS2Manager:
             if name == topic_name:
                 return types[0] if types else 'UnknownType'
         return None
-        
+    
+    # Get nested message fields  unique type
+    def get_message_field_types(self, message_structure):
+        """
+        Retrieves unique field types from a given ROS2 message structure.
+
+        :param message_structure: The full message structure as a dictionary.
+        :return: A list of unique field types.
+        """
+        unique_types = set()  # Using a set to avoid duplicates
+
+        def recursive_extract(struct):
+            """Recursively extract field types from nested message structures."""
+            if isinstance(struct, dict):
+                for value in struct.values():
+                    if isinstance(value, dict) or isinstance(value, list):
+                        recursive_extract(value)  # Recursively process nested structures
+                    elif isinstance(value, str):  # Only store type strings
+                        unique_types.add(value)
+            elif isinstance(struct, list):
+                for item in struct:
+                    if isinstance(item, str):  # Lists of types (e.g., covariance arrays)
+                        unique_types.add(item)
+
+        recursive_extract(message_structure)
+        return list(unique_types)  # Convert to list for JSON response
+            
 
     # Get nested message fields
+
+    def filter_message_structure(self, message_structure, include_types=None, exclude_types=None):
+        """
+        Filters the given message structure based on specified data types.
+
+        :param message_structure: The original message structure as a dictionary.
+        :param include_types: A list of data types to include (if provided, only these types will be kept).
+        :param exclude_types: A list of data types to exclude (if provided, these types will be removed).
+        :return: The filtered message structure.
+        """
+        if include_types is None:
+            include_types = []
+        if exclude_types is None:
+            exclude_types = []
+
+        def recursive_filter(struct):
+            """Recursively filters the message structure."""
+            if isinstance(struct, dict):
+                filtered = {}
+                for key, value in struct.items():
+                    if isinstance(value, dict) or isinstance(value, list):
+                        # Recursively filter nested structures
+                        filtered_value = recursive_filter(value)
+                        if filtered_value:  # Keep only non-empty values
+                            filtered[key] = filtered_value
+                    elif isinstance(value, str):  # Only check types if it's a string (type declaration)
+                        if (include_types and value not in include_types) or (exclude_types and value in exclude_types):
+                            continue  # Skip this field
+                        filtered[key] = value
+                return filtered
+            elif isinstance(struct, list):
+                return [recursive_filter(item) for item in struct if isinstance(item, str) and
+                        ((not include_types or item in include_types) and (not exclude_types or item not in exclude_types))]
+            return struct
+
+        return recursive_filter(message_structure)
 
     def get_message_structure(self, message_type_str):
         message_type_str = self.normalize_message_type(message_type_str)
