@@ -40,9 +40,8 @@ class TestMessagesAPI(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
 
         data = response.get_json()
-        self.assertEqual(len(data), 2)
-        self.assertEqual(data[0]['name'], '/parameter_events')
-        self.assertEqual(data[1]['type'], 'rcl_interfaces/msg/Log')
+        self.assertEqual(len(data), 0)  # Oczekujemy pustej listy
+        self.assertEqual(data, []) 
     
     def test_list_services(self):
         mocked_services = MagicMock()

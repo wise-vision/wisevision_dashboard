@@ -112,10 +112,41 @@ def extract_topics_from_expression(expression):
 @messages_api.route('/topics', methods=['GET'])
 def list_topics():
     try:
-        topics_obj = ros2_manager.get_topic_list()
-        topics_list = [{'name': topic.name, 'type': topic.type}
-                       for topic in topics_obj.get_topics()]
+        default_filter = request.args.get('default_filter', 'true').lower() == 'true'
+        message_types = request.args.getlist('message_types')
+        message_namespaces = request.args.getlist('message_namespaces')
+        name_contains = request.args.getlist('name_contains')
+
+        message_types = message_types if message_types else None
+        message_namespaces = message_namespaces if message_namespaces else None
+        name_contains = name_contains if name_contains else None
+
+        topics = ros2_manager.get_topic_list(
+            default_filter=default_filter, 
+            message_types=message_types, 
+            message_namespaces=message_namespaces,
+            name_contains=name_contains
+        )
+
+        topics_list = [{'name': name, 'type': topic_type} for name, topic_type in topics]
         return jsonify(topics_list), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+@messages_api.route('/topic_types', methods=['GET'])
+def list_topic_types():
+    try:
+        topic_types = ros2_manager.get_topics_types()
+        return jsonify(topic_types), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+@messages_api.route('/namespaces', methods=['GET'])
+def list_namespaces():
+    try:
+        namespaces = ros2_manager.get_namespaces()
+        return jsonify(namespaces), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -693,9 +724,23 @@ def get_message_type(topic_name):
 
 @messages_api.route('/message_structure/<path:message_type>', methods=['GET'])
 def get_message_structure(message_type):
-    try:
+    try:   
         structure = ros2_manager.get_message_structure(message_type)
+        include_types = request.args.getlist('include_types')
+        exclude_types = request.args.getlist('exclude_types')
+        if include_types or exclude_types:
+            structure = ros2_manager.filter_message_structure(structure, include_types, exclude_types) 
         return jsonify(structure), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+@messages_api.route('/message_field_types/<path:message_type>', methods=['GET'])
+def get_message_field_types(message_type):
+    try:
+        structure = ros2_manager.get_message_structure(message_type)  # Retrieve the full structure
+        field_types = ros2_manager.get_message_field_types(structure)  # Extract unique field types
+
+        return jsonify(field_types), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     
