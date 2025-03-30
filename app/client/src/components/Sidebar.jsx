@@ -50,16 +50,70 @@ const SettingsIcon = () => (
   </svg>
 );
 
-const CollapseIcon = () => (
+const MenuIcon = () => (
   <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M13.3333 3.33334L7.5 10L13.3333 16.6667" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M3.33333 5H16.6667M3.33333 10H16.6667M3.33333 15H16.6667" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>
 );
 
-const LogoIcon = () => (
-  <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M16 2C8.268 2 2 8.268 2 16C2 23.732 8.268 30 16 30C23.732 30 30 23.732 30 16C30 8.268 23.732 2 16 2Z" fill="#42A5F5"/>
-    <path d="M16 6C10.477 6 6 10.477 6 16C6 21.523 10.477 26 16 26C21.523 26 26 21.523 26 16C26 10.477 21.523 6 16 6ZM16 22C12.686 22 10 19.314 10 16C10 12.686 12.686 10 16 10C19.314 10 22 12.686 22 16C22 19.314 19.314 22 16 22Z" fill="white"/>
+// Replace the SVG LogoIcon with an image component that handles errors
+const LogoImage = () => {
+  // Try different casing and file formats as fallbacks
+  const [logoSrc, setLogoSrc] = useState(`${process.env.PUBLIC_URL}/wiseVisionLogoIco.ico`);
+  const [hasError, setHasError] = useState(false);
+
+  const handleError = () => {
+    if (logoSrc.includes('wiseVisionLogoIco.ico')) {
+      // First fallback: try lowercase version
+      setLogoSrc(`${process.env.PUBLIC_URL}/wisevisionlogoico.ico`);
+    } else if (logoSrc.includes('wisevisionlogoico.ico')) {
+      // Second fallback: try PNG version
+      setLogoSrc(`${process.env.PUBLIC_URL}/wisevisionLogoColor.png`);
+    } else if (logoSrc.includes('wisevisionLogoColor.png')) {
+      // Third fallback: try lowercase PNG
+      setLogoSrc(`${process.env.PUBLIC_URL}/wisevisionlogocolor.png`);
+    } else {
+      // If all attempts fail, show error state
+      setHasError(true);
+    }
+  };
+
+  if (hasError) {
+    // Fallback to a simple colored div with text if image loading fails
+    return <div className="logo--fallback">WV</div>;
+  }
+
+  return (
+    <img 
+      src={logoSrc}
+      alt="WiseVision Logo"
+      className="logo--image"
+      onError={handleError}
+    />
+  );
+};
+
+const AddChartIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M15.8333 2.5H4.16667C3.24167 2.5 2.5 3.25 2.5 4.16667V15.8333C2.5 16.75 3.24167 17.5 4.16667 17.5H15.8333C16.75 17.5 17.5 16.75 17.5 15.8333V4.16667C17.5 3.25 16.75 2.5 15.8333 2.5ZM13.3333 10.8333H10.8333V13.3333C10.8333 13.75 10.5 14.1667 10 14.1667C9.5 14.1667 9.16667 13.75 9.16667 13.3333V10.8333H6.66667C6.25 10.8333 5.83333 10.5 5.83333 10C5.83333 9.5 6.25 9.16667 6.66667 9.16667H9.16667V6.66667C9.16667 6.25 9.5 5.83333 10 5.83333C10.5 5.83333 10.8333 6.25 10.8333 6.66667V9.16667H13.3333C13.75 9.16667 14.1667 9.5 14.1667 10C14.1667 10.5 13.75 10.8333 13.3333 10.8333Z" fill="currentColor"/>
+  </svg>
+);
+
+const RemoveChartIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M15.8333 2.5H4.16667C3.24167 2.5 2.5 3.25 2.5 4.16667V15.8333C2.5 16.75 3.24167 17.5 4.16667 17.5H15.8333C16.75 17.5 17.5 16.75 17.5 15.8333V4.16667C17.5 3.25 16.75 2.5 15.8333 2.5ZM13.3333 10.8333H6.66667C6.25 10.8333 5.83333 10.5 5.83333 10C5.83333 9.5 6.25 9.16667 6.66667 9.16667H13.3333C13.75 9.16667 14.1667 9.5 14.1667 10C14.1667 10.5 13.75 10.8333 13.3333 10.8333Z" fill="currentColor"/>
+  </svg>
+);
+
+const ManageActionsIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M15.8333 9.16667V2.5H9.16667V9.16667H15.8333ZM15.8333 17.5V10.8333H9.16667V17.5H15.8333ZM7.5 17.5V10.8333H0.833336V17.5H7.5ZM7.5 9.16667V2.5H0.833336V9.16667H7.5Z" fill="currentColor"/>
+  </svg>
+);
+
+const CloseIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>
 );
 
@@ -73,9 +127,18 @@ const Sidebar = ({
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [activeItem, setActiveItem] = useState('dashboard');
+  const isMobile = window.innerWidth <= 768;
 
   const toggleCollapse = () => {
-    setIsCollapsed(!isCollapsed);
+    if (isMobile) {
+      // In mobile view, use the external toggle function
+      if (toggleExpanded) {
+        toggleExpanded();
+      }
+    } else {
+      // On desktop, use the internal collapse state
+      setIsCollapsed(!isCollapsed);
+    }
   };
 
   const handleCreateChart = () => {
@@ -126,8 +189,6 @@ const Sidebar = ({
     { id: 'settings', label: 'Settings', icon: <SettingsIcon /> },
   ];
 
-  const isMobile = window.innerWidth <= 768;
-
   return (
     <div className={`sidebar 
       ${isCollapsed ? 'sidebar-collapsed' : ''} 
@@ -136,12 +197,21 @@ const Sidebar = ({
     >
       <div className="sidebar-header">
         <div className="logo-container">
-          {!isCollapsed && <span className="logo--text">WiseVision Dashboard</span>}
-          <LogoIcon className={`logo--image ${isCollapsed ? 'logo--image-small' : ''}`} />
+          {/* Only show logo on mobile, not the text */}
+          {!isCollapsed && window.innerWidth > 768 && <span className="logo--text">WiseVision Dashboard</span>}
+          <LogoImage />
         </div>
-        <button className="collapse-btn" onClick={toggleCollapse} aria-label="Toggle sidebar">
-          <CollapseIcon className={`collapse-icon ${isCollapsed ? 'collapse-icon-rotated' : ''}`} />
-        </button>
+        
+        {/* Add close button for mobile */}
+        {isMobile && isExpanded && (
+          <button 
+            className="sidebar-close-btn" 
+            onClick={toggleCollapse}
+            aria-label="Close sidebar"
+          >
+            <CloseIcon />
+          </button>
+        )}
       </div>
 
       <div className="sidebar-menu">
@@ -152,42 +222,46 @@ const Sidebar = ({
             onClick={() => handleMenuItemClick(item.id)}
           >
             <span className="menu--item-icon">{item.icon}</span>
-            {!isCollapsed && <span className="menu--item-label">{item.label}</span>}
+            <span className="menu--item-label">{item.label}</span>
           </button>
         ))}
       </div>
 
-      <div className="sidebar-actions">
+      {/* Hide sidebar actions since we're using the content header dropdown now */}
+      {false && <div className="sidebar-actions">
         <Button
           variant="primary"
-          size={isCollapsed ? 'small' : 'medium'}
+          size={isCollapsed && !isMobile ? 'small' : 'medium'}
           onClick={handleCreateChart}
           fullWidth
           className="sidebar-action-btn"
+          icon={isCollapsed && !isMobile ? <AddChartIcon /> : null}
         >
-          {isCollapsed ? '+' : 'Add Chart'}
+          {isCollapsed && !isMobile ? '' : 'Add Chart'}
         </Button>
         
         <Button
           variant="outline"
-          size={isCollapsed ? 'small' : 'medium'}
+          size={isCollapsed && !isMobile ? 'small' : 'medium'}
           onClick={handleDeleteChart}
           fullWidth
           className="sidebar-action-btn mt-sm"
+          icon={isCollapsed && !isMobile ? <RemoveChartIcon /> : null}
         >
-          {isCollapsed ? '−' : 'Remove Chart'}
+          {isCollapsed && !isMobile ? '' : 'Remove Chart'}
         </Button>
 
         <Button
           variant="secondary"
-          size={isCollapsed ? 'small' : 'medium'}
+          size={isCollapsed && !isMobile ? 'small' : 'medium'}
           onClick={openActionsModal}
           fullWidth
           className="sidebar-action-btn mt-sm"
+          icon={isCollapsed && !isMobile ? <ManageActionsIcon /> : null}
         >
-          {isCollapsed ? '⚡' : 'Manage Actions'}
+          {isCollapsed && !isMobile ? '' : 'Manage Actions'}
         </Button>
-      </div>
+      </div>}
     </div>
   );
 };

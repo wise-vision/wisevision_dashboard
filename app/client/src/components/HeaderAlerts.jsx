@@ -87,9 +87,13 @@ const HeaderAlerts = ({ isDarkMode, toggleDarkMode, toggleSidebar }) => {
       }
     };
 
+    // Use both mouse and touch events
     document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
     };
   }, []);
 

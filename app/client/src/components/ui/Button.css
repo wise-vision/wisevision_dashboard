@@ -45,24 +45,30 @@
 /* Button variants */
 .btn-primary {
   background: linear-gradient(135deg, #42A5F5, #1E88E5);
-  color: white; /* Ensure text is white on blue background */
+  color: #FFFFFF !important; /* Ensure text is always white on blue background */
 }
 
 .btn-primary:hover {
   background: linear-gradient(135deg, #1E88E5, #1565C0);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-  transform: translateY(-1px);
+  color: #FFFFFF !important;
+}
+
+.btn-primary .btn-text {
+  color: #FFFFFF !important; /* Force white text for button content */
 }
 
 .btn-secondary {
   background: linear-gradient(135deg, #4BCDF0, #20428B);
-  color: white; /* Ensure text is white on blue background */
+  color: #FFFFFF !important; /* Ensure text is always white on blue background */
 }
 
 .btn-secondary:hover {
   background: linear-gradient(135deg, #3BBCDF, #0D2C7B);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-  transform: translateY(-1px);
+  color: #FFFFFF !important;
+}
+
+.btn-secondary .btn-text {
+  color: #FFFFFF !important; /* Force white text for button content */
 }
 
 .btn-outline {
@@ -98,6 +104,14 @@
   background: linear-gradient(135deg, #43A047, #2E7D32);
 }
 
+.btn-success {
+  color: #FFFFFF !important;
+}
+
+.btn-success .btn-text {
+  color: #FFFFFF !important;
+}
+
 .btn-danger {
   background: linear-gradient(135deg, #EF5350, #E53935);
   color: white;
@@ -105,6 +119,14 @@
 
 .btn-danger:hover {
   background: linear-gradient(135deg, #E53935, #C62828);
+}
+
+.btn-danger {
+  color: #FFFFFF !important;
+}
+
+.btn-danger .btn-text {
+  color: #FFFFFF !important;
 }
 
 .btn-warning {

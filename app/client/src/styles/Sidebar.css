@@ -239,10 +239,29 @@
   width: 32px;
   height: 32px;
   transition: transform 0.3s ease;
+  object-fit: contain;
 }
 
 .logo--image-small {
   transform: scale(1.2);
+}
+
+/* Add a fallback for the logo image */
+.logo--fallback {
+  width: 32px;
+  height: 32px;
+  background-color: #1E88E5;
+  color: white;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.sidebar-dark .logo--fallback {
+  background-color: #42A5F5;
 }
 
 /* Collapse button */
@@ -280,6 +299,36 @@
 
 .collapse-icon-rotated {
   transform: rotate(180deg);
+}
+
+/* Add style for the close button */
+.sidebar-close-btn {
+  background: transparent;
+  border: none;
+  color: #9E9E9E;
+  font-size: 1.5rem;
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+
+.sidebar-close-btn:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: #1E88E5;
+}
+
+.sidebar-dark .sidebar-close-btn {
+  color: #E0E0E0;
+}
+
+.sidebar-dark .sidebar-close-btn:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #42A5F5;
 }
 
 /* Menu items */
@@ -388,105 +437,112 @@
   text-overflow: ellipsis;
 }
 
+/* Better styles for collapsed button icons */
+.sidebar-collapsed .sidebar-action-btn {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0.75rem !important;
+  min-width: auto;
+}
+
+.sidebar-collapsed .sidebar-action-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
+  /* Initially hide the entire sidebar on mobile */
   .sidebar {
-    width: 100%;
-    min-width: 100%;
-    height: 60px;
-    min-height: 60px;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 10px;
-    position: relative;
-  }
-
-  .sidebar-collapsed {
-    width: 100%;
-    min-width: 100%;
-  }
-
-  .sidebar-header {
-    border: none;
-    padding: 0 5px;
-    width: auto;
-    flex: 0 0 auto;
-  }
-
-  .sidebar-menu {
-    display: flex;
-    padding: 0 5px;
-    overflow-x: auto;
-    overflow-y: hidden;
-    justify-content: center;
-    flex: 1;
-  }
-
-  .menu--item {
-    margin: 0 2px;
-    padding: 8px;
-    min-width: 40px;
-    height: 40px;
-    display: flex;
-    justify-content: center;
-    border-radius: 6px;
-  }
-
-  .sidebar-actions {
-    display: flex;
-    border: none;
-    padding: 0 5px;
-    gap: 5px;
-    flex: 0 0 auto;
-  }
-
-  /* Adjust sidebar menu appearance on mobile */
-  .menu--item-label {
     display: none;
-  }
-
-  .menu--item-icon {
-    margin-right: 0;
-  }
-
-  .sidebar-action-btn {
-    margin-top: 0 !important;
-    width: 40px !important;
-    padding: 0 !important;
-    min-width: unset;
-  }
-
-  /* Hide text on mobile buttons */
-  .sidebar-action-btn span:not(.btn-icon) {
-    display: none;
-  }
-  
-  /* Show mobile menu when hamburger is clicked */
-  .sidebar.sidebar-expanded {
-    position: absolute;
-    height: auto;
-    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     z-index: 1000;
-  }
-
-  .sidebar.sidebar-expanded .sidebar-menu {
-    flex-direction: column;
-    width: 100%;
-    height: auto;
-    max-height: 300px;
+    background-color: #FFFFFF;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
     overflow-y: auto;
   }
-
-  .sidebar.sidebar-expanded .menu--item {
-    width: 100%;
-    margin: 5px 0;
-    justify-content: flex-start;
-    padding: 12px;
+  
+  .sidebar-dark {
+    background-color: #1E293B;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
   }
-
-  .sidebar.sidebar-expanded .menu--item-label {
+  
+  /* Only display the sidebar when expanded */
+  .sidebar.sidebar-expanded {
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+  }
+  
+  /* Show the sidebar header when expanded */
+  .sidebar-expanded .sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 1rem;
+    margin-bottom: 0;
+  }
+  
+  /* Position the close button in the header */
+  .sidebar-header .sidebar-close {
     display: block;
-    margin-left: 12px;
+    font-size: 1.5rem;
+    background: none;
+    border: none;
+    color: #9E9E9E;
+    cursor: pointer;
+  }
+  
+  .sidebar-dark .sidebar-header .sidebar-close {
+    color: #E0E0E0;
+  }
+  
+  /* Layout for menu items in mobile */
+  .sidebar-expanded .sidebar-menu {
+    display: flex;
+    flex-direction: column;
+    padding: 0.5rem 0;
+    overflow-y: auto;
+  }
+  
+  .sidebar-expanded .menu--item {
+    width: 100%;
+    margin: 0.25rem 0;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    justify-content: flex-start;
+  }
+  
+  .sidebar-expanded .menu--item-icon {
+    margin-right: 1rem;
+  }
+  
+  .sidebar-expanded .menu--item-label {
+    display: block;
+    opacity: 1;
+    width: auto;
+    overflow: visible;
+  }
+  
+  /* Layout for action buttons in mobile */
+  .sidebar-expanded .sidebar-actions {
+    padding: 0.5rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    margin-top: auto;
+  }
+  
+  .sidebar-dark .sidebar-actions {
+    border-top-color: rgba(255, 255, 255, 0.1);
   }
 }

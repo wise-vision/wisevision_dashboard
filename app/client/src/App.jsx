@@ -100,8 +100,18 @@ const App = () => {
         }
     };
 
+    // Toggle sidebar function for both mobile and desktop
     const toggleSidebar = () => {
-        setSidebarExpanded(!sidebarExpanded);
+        // For mobile, show/hide the sidebar
+        if (window.innerWidth <= 768) {
+            setSidebarExpanded(!sidebarExpanded);
+        } else {
+            // For desktop, collapse/expand the sidebar
+            const sidebar = document.querySelector('.sidebar');
+            if (sidebar) {
+                sidebar.classList.toggle('sidebar-collapsed');
+            }
+        }
     };
 
     const updateLayoutConfig = (newLayout) => {

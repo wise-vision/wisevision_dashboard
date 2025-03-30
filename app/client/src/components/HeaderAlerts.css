@@ -392,6 +392,13 @@
   color: #718096;
 }
 
+/* Unified sidebar toggle button */
+.sidebar-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .header {
@@ -421,6 +428,8 @@
     max-width: 350px;
     left: 50%;
     transform: translateX(-50%);
+    top: 60px; /* Position below header */
+    z-index: 1100; /* Ensure it's above other content */
   }
   
   .search-container {

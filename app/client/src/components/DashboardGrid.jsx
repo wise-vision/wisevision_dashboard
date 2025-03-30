@@ -154,7 +154,7 @@ const DashboardGrid = ({
       ) : (
         <div className="no-charts">
           <h3>No charts to display</h3>
-          <p>Add charts using the sidebar to get started.</p>
+          <p>Add charts using the Actions to get started.</p>
         </div>
       )}
     </div>
