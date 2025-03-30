@@ -1,0 +1,238 @@
+/*
+ * Copyright (C) 2025 wisevision
+ *
+ * SPDX-License-Identifier: MPL-2.0
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
+/* Modal form styling */
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Form groups */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-group label {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #1A1F36;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #E0E0E0;
+  background-color: #FFFFFF;
+  font-size: 0.95rem;
+  color: #1A1F36;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  border-color: #1E88E5;
+  box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.2);
+  outline: none;
+}
+
+.form-help {
+  font-size: 0.8rem;
+  color: #757575;
+  margin-top: 0.25rem;
+}
+
+/* Error message */
+.error-message {
+  padding: 0.75rem;
+  background-color: rgba(244, 67, 54, 0.1);
+  color: #F44336;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.error-message::before {
+  content: "⚠️";
+}
+
+/* Warning message */
+.warning-message {
+  padding: 0.75rem;
+  background-color: rgba(255, 193, 7, 0.1);
+  color: #FF9800;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.warning-message::before {
+  content: "⚠️";
+}
+
+/* Modal actions */
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+/* Loading spinner */
+.loading-spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  color: #757575;
+}
+
+.loading-spinner::before {
+  content: "";
+  width: 20px;
+  height: 20px;
+  border: 2px solid #E0E0E0;
+  border-top-color: #1E88E5;
+  border-radius: 50%;
+  animation: spinner 0.6s linear infinite;
+  margin-right: 0.75rem;
+}
+
+@keyframes spinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Empty state message */
+.empty-state-message {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: #757575;
+}
+
+/* Tab navigation */
+.tabs-navigation {
+  display: flex;
+  border-bottom: 1px solid #E0E0E0;
+  margin-bottom: 1.5rem;
+}
+
+.tab-item {
+  padding: 0.75rem 1.25rem;
+  border: none;
+  background: transparent;
+  color: #757575;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  position: relative;
+}
+
+.tab-item:hover {
+  color: #1E88E5;
+}
+
+.tab-item.active {
+  color: #1E88E5;
+}
+
+.tab-item.active::after {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: #1E88E5;
+}
+
+/* Dark mode styles */
+.dark-mode .form-group label {
+  color: #E0E0E0;
+}
+
+.dark-mode .form-group input,
+.dark-mode .form-group select,
+.dark-mode .form-group textarea {
+  background-color: #2D3748;
+  border-color: #4A5568;
+  color: #E0E0E0;
+}
+
+.dark-mode .form-group input:focus,
+.dark-mode .form-group select:focus,
+.dark-mode .form-group textarea:focus {
+  border-color: #42A5F5;
+  box-shadow: 0 0 0 3px rgba(66, 165, 245, 0.2);
+}
+
+.dark-mode .form-help {
+  color: #A0AEC0;
+}
+
+.dark-mode .error-message {
+  background-color: rgba(244, 67, 54, 0.15);
+  color: #FF5252;
+}
+
+.dark-mode .warning-message {
+  background-color: rgba(255, 193, 7, 0.15);
+  color: #FFB74D;
+}
+
+.dark-mode .loading-spinner {
+  color: #A0AEC0;
+}
+
+.dark-mode .loading-spinner::before {
+  border-color: #4A5568;
+  border-top-color: #42A5F5;
+}
+
+.dark-mode .empty-state-message {
+  color: #A0AEC0;
+}
+
+.dark-mode .tabs-navigation {
+  border-color: #4A5568;
+}
+
+.dark-mode .tab-item {
+  color: #A0AEC0;
+}
+
+.dark-mode .tab-item:hover {
+  color: #42A5F5;
+}
+
+.dark-mode .tab-item.active {
+  color: #42A5F5;
+}
+
+.dark-mode .tab-item.active::after {
+  background-color: #42A5F5;
+}
+
+/* Dark input styles */
+.dark-input {
+  background-color: #2D3748 !important;
+  border-color: #4A5568 !important;
+  color: #E0E0E0 !important;
+}

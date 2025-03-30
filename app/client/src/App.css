@@ -10,15 +10,68 @@
 
 .dashboard {
   display: flex;
-  gap: 20px;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  background-color: #F4F5F6;
+  transition: background-color 0.3s ease;
 }
+
 .dashboard--content {
   background: #fff;
   flex: 1;
   border-radius: 20px;
   padding: 2rem;
   display: flex;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  margin: 1rem;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
+
+.dashboard-content {
+  flex: 1;
+  padding: 1.5rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  transition: background-color 0.3s ease;
+}
+
+/* Dark mode styles */
+.dark-mode {
+  background-color: #1A1F36;
+  color: #E0E0E0;
+}
+
+.dark-mode .dashboard--content {
+  background-color: #242C43;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.dark-mode .dashboard-content {
+  background-color: #1A1F36;
+}
+
+/* Animations */
+.fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (max-width: 768px) {
+  .dashboard {
+    flex-direction: column;
+  }
+  
+  .dashboard--content {
+    margin: 0.5rem;
+    padding: 1.5rem;
+  }
+}
+
 * {
   font-family: 'Roboto Condensed', sans-serif;
 }
