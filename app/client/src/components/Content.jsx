@@ -11,7 +11,6 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import DashboardGrid from './DashboardGrid';
-import Modal from './ui/Modal';
 import Button from './ui/Button';
 import Card from './ui/Card';
 import '../styles/Content.css';

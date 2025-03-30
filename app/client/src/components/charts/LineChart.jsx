@@ -8,7 +8,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { Line } from 'react-chartjs-2';
 import {
@@ -43,15 +43,8 @@ const LineChart = ({ topic, label, isDarkMode = false }) => {
   const [error, setError] = useState(null);
   const [lastUpdate, setLastUpdate] = useState('');
 
-  useEffect(() => {
-    fetchData();
-    // Poll for new data every 5 seconds
-    const intervalId = setInterval(fetchData, 5000);
-    
-    return () => clearInterval(intervalId);
-  }, [topic]);
-
-  const fetchData = async () => {
+  // Define fetchData with useCallback to prevent infinite loop
+  const fetchData = useCallback(async () => {
     if (!topic) {
       setError('No topic specified');
       setLoading(false);
@@ -106,7 +99,15 @@ const LineChart = ({ topic, label, isDarkMode = false }) => {
       setError(`Failed to load data: ${err.message}`);
       setLoading(false);
     }
-  };
+  }, [topic]); // Topic as dependency
+
+  useEffect(() => {
+    fetchData();
+    // Poll for new data every 5 seconds
+    const intervalId = setInterval(fetchData, 5000);
+    
+    return () => clearInterval(intervalId);
+  }, [fetchData]); // Added fetchData as dependency
 
   // Chart options
   const options = {

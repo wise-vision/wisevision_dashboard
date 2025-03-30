@@ -236,7 +236,6 @@ const CreateReportModal = ({ isOpen, onClose, isDarkMode = false }) => {
     
     // Add message data
     doc.setFontSize(10);
-    let messageCount = 0;
     
     const addDataPage = (pageData) => {
       doc.text("Message Data:", margin, yOffset);

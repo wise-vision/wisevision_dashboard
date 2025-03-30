@@ -41,7 +41,7 @@ const GpsChart = ({ isDarkMode = false }) => {
   
   // Default center location (update with your default location)
   const [mapCenter, setMapCenter] = useState([50.049683, 19.944544]); // Krakow as default
-  const [mapZoom, setMapZoom] = useState(13);
+  const mapZoom = 13; // Changed from state to constant since it's not being set
 
   useEffect(() => {
     fetchGpsData();
@@ -49,9 +49,10 @@ const GpsChart = ({ isDarkMode = false }) => {
     const intervalId = setInterval(fetchGpsData, 5000);
     
     return () => clearInterval(intervalId);
-  }, []);
+  }, [fetchGpsData]); // Added missing dependency
 
-  const fetchGpsData = async () => {
+  // Define fetchGpsData with useCallback to prevent infinite loop
+  const fetchGpsData = React.useCallback(async () => {
     try {
       const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || ''}/api/topic_echo_gps_devices`);
       
@@ -90,7 +91,7 @@ const GpsChart = ({ isDarkMode = false }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
   
   // Helper function to convert buffer array to hex string
   const bufferToString = (buffer) => {

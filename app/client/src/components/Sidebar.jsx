@@ -50,12 +50,6 @@ const SettingsIcon = () => (
   </svg>
 );
 
-const MenuIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M3.33333 5H16.6667M3.33333 10H16.6667M3.33333 15H16.6667" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
-);
-
 // Replace the SVG LogoIcon with an image component that handles errors
 const LogoImage = () => {
   // Try different casing and file formats as fallbacks

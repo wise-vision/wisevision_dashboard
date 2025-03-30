@@ -69,7 +69,7 @@ const App = () => {
         if (layoutConfig && charts.length > 0) {
             LayoutManager.saveLayout(layoutConfig, charts);
         }
-    }, [layoutConfig, charts]);
+    }, [layoutConfig, charts]); // Added missing dependencies
 
     // Function to update charts and localStorage
     const updateCharts = (newCharts) => {

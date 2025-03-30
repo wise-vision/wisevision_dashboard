@@ -32,14 +32,8 @@ const ActionsModal = ({ isOpen, onClose, isDarkMode = false }) => {
   const [logicExpression, setLogicExpression] = useState('');
   const [availableTopics, setAvailableTopics] = useState([]);
 
-  useEffect(() => {
-    if (isOpen) {
-      fetchActions();
-      fetchTopics();
-    }
-  }, [isOpen]);
-
-  const fetchActions = async () => {
+  // Convert fetchActions to useCallback
+  const fetchActions = React.useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -68,9 +62,9 @@ const ActionsModal = ({ isOpen, onClose, isDarkMode = false }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []); // No dependencies for now
 
-  const fetchTopics = async () => {
+  const fetchTopics = React.useCallback(async () => {
     try {
       const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || ''}/api/topics`);
       if (!response.ok) {
@@ -81,8 +75,15 @@ const ActionsModal = ({ isOpen, onClose, isDarkMode = false }) => {
     } catch (err) {
       console.error('Error fetching topics:', err);
     }
-  };
-  
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchActions();
+      fetchTopics();
+    }
+  }, [isOpen, fetchActions, fetchTopics]); // Added missing dependencies
+
   const formatDateTime = (dateTimeObj) => {
     if (!dateTimeObj) return 'Never';
     
