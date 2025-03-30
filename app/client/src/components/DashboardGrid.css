@@ -9,9 +9,10 @@
  */
 
 .dashboard-grid {
-  padding: 1rem 0;
+  padding: 0.5rem 0;
   width: 100%;
   height: 100%;
+  overflow: auto;
 }
 
 .dashboard-grid-dark {
@@ -20,17 +21,19 @@
 
 /* Grid item styling */
 .react-grid-item {
-  transition: all 200ms ease-out;
-  transition-property: transform, opacity, box-shadow;
-  will-change: transform;
+  transition: all 200ms ease;
+  transition-property: transform, width, height;
+  will-change: transform, width, height;
   border-radius: 12px;
   overflow: hidden;
+  touch-action: none;
 }
 
 .react-grid-item.dragging {
   z-index: 10;
   box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
-  transition: box-shadow 300ms ease;
+  transition: box-shadow 200ms ease;
+  cursor: grabbing !important;
 }
 
 /* Chart cards */
@@ -110,6 +113,54 @@
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .dashboard-grid {
-    padding: 0.5rem 0;
+    padding: 0.25rem 0;
+    overflow-x: hidden;
   }
+  
+  .react-grid-item {
+    touch-action: pan-y;
+  }
+  
+  .chart-card .card-header {
+    padding: 12px 16px;
+  }
+  
+  .chart-wrapper {
+    min-height: 120px;
+  }
+}
+
+@media (max-width: 480px) {
+  .react-grid-item {
+    transition-property: height;
+  }
+  
+  /* Force single column on very small screens */
+  .layout.react-grid-layout .react-grid-item {
+    width: 100% !important;
+    transform: translateX(0) !important;
+    left: 0 !important;
+  }
+}
+
+.card-header {
+  cursor: grab;
+}
+
+.card-header:active {
+  cursor: grabbing;
+}
+
+.react-resizable-handle {
+  opacity: 0.5;
+  transition: opacity 0.2s ease;
+}
+
+.react-grid-item:hover .react-resizable-handle {
+  opacity: 1;
+}
+
+/* Ensure react-grid-layout containers fill the space */
+.layout.react-grid-layout {
+  width: 100% !important;
 }

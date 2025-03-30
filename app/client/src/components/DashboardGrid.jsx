@@ -123,6 +123,13 @@ const DashboardGrid = ({
           }}
           draggableHandle=".card-header"
           isBounded={true}
+          useCSSTransforms={true}
+          compactType="vertical"
+          preventCollision={false}
+          isResizable={true}
+          resizeHandles={['se']}
+          autoSize={true}
+          verticalCompact={true}
         >
           {charts.map((chart, index) => {
             const chartId = chart.id || `chart-${index}`;

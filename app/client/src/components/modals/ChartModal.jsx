@@ -54,7 +54,7 @@ const ChartModal = ({ isOpen, onClose, addChart, isDarkMode = false }) => {
       return;
     }
 
-    if (chartType !== 'pie' && !topic) {
+    if (!topic) {
       setError('Please select a topic');
       return;
     }
@@ -122,31 +122,29 @@ const ChartModal = ({ isOpen, onClose, addChart, isDarkMode = false }) => {
           </select>
         </div>
         
-        {chartType !== 'pie' && (
-          <div className="form-group">
-            <label htmlFor="topic">ROS2 Topic</label>
-            {loading ? (
-              <div className="loading-spinner">Loading topics...</div>
-            ) : (
-              <select
-                id="topic"
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-                className={isDarkMode ? 'dark-input' : ''}
-              >
-                <option value="">Select a topic</option>
-                {availableTopics.map((topic, index) => (
-                  <option key={index} value={topic.name}>
-                    {topic.name}
-                  </option>
-                ))}
-              </select>
-            )}
-            <small className="form-help">
-              Select the ROS2 topic to visualize in this chart
-            </small>
-          </div>
-        )}
+        <div className="form-group">
+          <label htmlFor="topic">ROS2 Topic</label>
+          {loading ? (
+            <div className="loading-spinner">Loading topics...</div>
+          ) : (
+            <select
+              id="topic"
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              className={isDarkMode ? 'dark-input' : ''}
+            >
+              <option value="">Select a topic</option>
+              {availableTopics.map((topic, index) => (
+                <option key={index} value={topic.name}>
+                  {topic.name}
+                </option>
+              ))}
+            </select>
+          )}
+          <small className="form-help">
+            Select the ROS2 topic to visualize in this chart
+          </small>
+        </div>
         
         <div className="modal-actions">
           <Button 

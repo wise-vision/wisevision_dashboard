@@ -67,7 +67,9 @@ const Sidebar = ({
   setIsModalOpen, 
   setIsDeleteModalOpen, 
   openActionsModal,
-  isDarkMode = false 
+  isDarkMode = false,
+  isExpanded = false,
+  toggleExpanded
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [activeItem, setActiveItem] = useState('dashboard');
@@ -84,6 +86,37 @@ const Sidebar = ({
     setIsDeleteModalOpen(true);
   };
 
+  const handleMenuItemClick = (itemId) => {
+    setActiveItem(itemId);
+    
+    // Add functionality for each menu item
+    switch(itemId) {
+      case 'dashboard':
+        // Default view - nothing special needed
+        break;
+      case 'chart':
+        setIsModalOpen(true);
+        break;
+      case 'actions':
+        openActionsModal();
+        break;
+      case 'gps':
+        // Show GPS specific view or modal
+        alert('GPS Tracking feature will be available soon!');
+        break;
+      case 'report':
+        // Open report modal or navigate to reports page
+        alert('Reports feature will be available soon!');
+        break;
+      case 'settings':
+        // Open settings modal or navigate to settings page
+        alert('Settings feature will be available soon!');
+        break;
+      default:
+        break;
+    }
+  };
+
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
     { id: 'chart', label: 'Charts', icon: <ChartIcon /> },
@@ -93,11 +126,17 @@ const Sidebar = ({
     { id: 'settings', label: 'Settings', icon: <SettingsIcon /> },
   ];
 
+  const isMobile = window.innerWidth <= 768;
+
   return (
-    <div className={`sidebar ${isCollapsed ? 'sidebar-collapsed' : ''} ${isDarkMode ? 'sidebar-dark' : ''}`}>
+    <div className={`sidebar 
+      ${isCollapsed ? 'sidebar-collapsed' : ''} 
+      ${isDarkMode ? 'sidebar-dark' : ''} 
+      ${isExpanded ? 'sidebar-expanded' : ''}`}
+    >
       <div className="sidebar-header">
         <div className="logo-container">
-          {!isCollapsed && <span className="logo--text">ROS2 Dashboard</span>}
+          {!isCollapsed && <span className="logo--text">WiseVision Dashboard</span>}
           <LogoIcon className={`logo--image ${isCollapsed ? 'logo--image-small' : ''}`} />
         </div>
         <button className="collapse-btn" onClick={toggleCollapse} aria-label="Toggle sidebar">
@@ -110,7 +149,7 @@ const Sidebar = ({
           <button
             key={item.id}
             className={`menu--item ${activeItem === item.id ? 'active' : ''}`}
-            onClick={() => setActiveItem(item.id)}
+            onClick={() => handleMenuItemClick(item.id)}
           >
             <span className="menu--item-icon">{item.icon}</span>
             {!isCollapsed && <span className="menu--item-label">{item.label}</span>}
@@ -157,7 +196,9 @@ Sidebar.propTypes = {
   setIsModalOpen: PropTypes.func.isRequired,
   setIsDeleteModalOpen: PropTypes.func.isRequired,
   openActionsModal: PropTypes.func.isRequired,
-  isDarkMode: PropTypes.bool
+  isDarkMode: PropTypes.bool,
+  isExpanded: PropTypes.bool,
+  toggleExpanded: PropTypes.func
 };
 
 export default Sidebar;

@@ -22,6 +22,7 @@ const App = () => {
     const [charts, setCharts] = useState([]);
     const [layoutConfig, setLayoutConfig] = useState(null);
     const [isDarkMode, setIsDarkMode] = useState(false);
+    const [sidebarExpanded, setSidebarExpanded] = useState(false);
 
     // Load charts and layout from localStorage on component mount
     useEffect(() => {
@@ -99,37 +100,48 @@ const App = () => {
         }
     };
 
+    const toggleSidebar = () => {
+        setSidebarExpanded(!sidebarExpanded);
+    };
+
     const updateLayoutConfig = (newLayout) => {
         setLayoutConfig(newLayout);
     };
 
     return (
         <div className={`dashboard ${isDarkMode ? 'dark-mode' : ''}`}>
-            <HeaderAlerts 
-                isDarkMode={isDarkMode} 
-                toggleDarkMode={toggleDarkMode} 
-            />
-            <Sidebar
-                setIsModalOpen={setIsModalOpen}
-                setIsDeleteModalOpen={setIsDeleteModalOpen}
-                openActionsModal={() => setIsActionsModalOpen(true)}
-                isDarkMode={isDarkMode}
-            />
-            <div className="dashboard-content">
-                <Content
-                    isModalOpen={isModalOpen}
-                    setIsModalOpen={setIsModalOpen}
-                    isDeleteModalOpen={isDeleteModalOpen}
-                    setIsDeleteModalOpen={setIsDeleteModalOpen}
-                    isActionsModalOpen={isActionsModalOpen}
-                    setIsActionsModalOpen={setIsActionsModalOpen}
-                    charts={charts}
-                    addChart={addChart}
-                    deleteChartByName={deleteChartByName}
-                    layoutConfig={layoutConfig}
-                    updateLayoutConfig={updateLayoutConfig}
-                    isDarkMode={isDarkMode}
+            <div className="dashboard-wrapper">
+                <HeaderAlerts 
+                    isDarkMode={isDarkMode} 
+                    toggleDarkMode={toggleDarkMode}
+                    toggleSidebar={toggleSidebar} 
                 />
+                <div className="dashboard-content-wrapper">
+                    <Sidebar
+                        setIsModalOpen={setIsModalOpen}
+                        setIsDeleteModalOpen={setIsDeleteModalOpen}
+                        openActionsModal={() => setIsActionsModalOpen(true)}
+                        isDarkMode={isDarkMode}
+                        isExpanded={sidebarExpanded}
+                        toggleExpanded={toggleSidebar}
+                    />
+                    <div className="dashboard-content">
+                        <Content
+                            isModalOpen={isModalOpen}
+                            setIsModalOpen={setIsModalOpen}
+                            isDeleteModalOpen={isDeleteModalOpen}
+                            setIsDeleteModalOpen={setIsDeleteModalOpen}
+                            isActionsModalOpen={isActionsModalOpen}
+                            setIsActionsModalOpen={setIsActionsModalOpen}
+                            charts={charts}
+                            addChart={addChart}
+                            deleteChartByName={deleteChartByName}
+                            layoutConfig={layoutConfig}
+                            updateLayoutConfig={updateLayoutConfig}
+                            isDarkMode={isDarkMode}
+                        />
+                    </div>
+                </div>
             </div>
         </div>
     );

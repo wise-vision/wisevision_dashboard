@@ -38,7 +38,14 @@ const DarkModeIcon = () => (
   </svg>
 );
 
-const HeaderAlerts = ({ isDarkMode, toggleDarkMode }) => {
+// Add hamburger menu icon
+const MenuIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M3.33333 5H16.6667M3.33333 10H16.6667M3.33333 15H16.6667" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+const HeaderAlerts = ({ isDarkMode, toggleDarkMode, toggleSidebar }) => {
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -101,7 +108,14 @@ const HeaderAlerts = ({ isDarkMode, toggleDarkMode }) => {
   return (
     <header className={`header ${isDarkMode ? 'header-dark' : ''}`}>
       <div className="header-left">
-        <h1 className="header-title">ROS2 Dashboard</h1>
+        <button 
+          className="header-icon-button mobile-menu-toggle"
+          onClick={toggleSidebar}
+          aria-label="Toggle menu"
+        >
+          <MenuIcon />
+        </button>
+        <h1 className="header-title">WiseVision Dashboard</h1>
       </div>
       
       <div className="header-search" ref={searchRef}>
@@ -208,7 +222,8 @@ const HeaderAlerts = ({ isDarkMode, toggleDarkMode }) => {
 
 HeaderAlerts.propTypes = {
   isDarkMode: PropTypes.bool.isRequired,
-  toggleDarkMode: PropTypes.func.isRequired
+  toggleDarkMode: PropTypes.func.isRequired,
+  toggleSidebar: PropTypes.func.isRequired
 };
 
 export default HeaderAlerts;
