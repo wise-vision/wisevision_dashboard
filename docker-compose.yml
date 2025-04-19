@@ -1,27 +1,121 @@
 version: '3.8'
 
 services:
+  # Frontend - Next.js Dashboard UI
+  frontend:
+    build:
+      context: ./app/next-client
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    restart: unless-stopped
+    networks:
+      - wisevision-network
+
+  # Backend - FastAPI Service (for standalone use)
+  backend-standalone:
+    build:
+      context: ./app/server
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - LOG_LEVEL=info
+      - CORS_ORIGINS=http://localhost:3000
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-wisevision-dashboard-dev-key}
+      - DATA_BLACK_BOX_URL=http://data-black-box:8001
+      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
+      - RMW_IMPLEMENTATION=${RMW_IMPLEMENTATION:-rmw_cyclonedds_cpp}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - ./logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - wisevision-network
+    depends_on:
+      - data-black-box
+
+  # Backend - FastAPI Service (for composite use)
+  # This version can be extended by the root compose file
   backend:
     build:
-      context: . 
-      dockerfile: app/server/Dockerfile
+      context: ./app/server
+      dockerfile: Dockerfile
     ports:
-      - '5000:5000'
-    ipc: "host"
-    pid: "host"
-    stdin_open: true
-    tty: true
+      - "8000:8000"
     environment:
-      FLASK_ENV: debug
+      - HOST=0.0.0.0
+      - PORT=8000
+      - LOG_LEVEL=info
+      - CORS_ORIGINS=http://localhost:3000
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-wisevision-dashboard-dev-key}
+      - DATA_BLACK_BOX_URL=http://wisevision_data_black_box:8001
+      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
+      - RMW_IMPLEMENTATION=${RMW_IMPLEMENTATION:-rmw_cyclonedds_cpp}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - ./logs:/app/logs
+    restart: unless-stopped
+    # No depends_on here so it can be extended
 
+  # Frontend - Next.js Dashboard UI (for composite use)
+  # This version can be extended by the root compose file
   client:
     build:
-      context: .  
-      dockerfile: app/client/Dockerfile
+      context: ./app/next-client
+      dockerfile: Dockerfile
     ports:
-      - '3000:3000' 
+      - "3000:3000"
     environment:
-      - CHOKIDAR_USEPOLLING=true
-      - WATCHPACK_POLLING=true
-    stdin_open: true
-    tty: true
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    restart: unless-stopped
+    # No depends_on here so it can be extended
+
+  # Data Black Box - InfluxDB Client for Historical Data (for standalone use)
+#   data-black-box:
+#     image: wisevision/data-black-box:latest
+#     ports:
+#       - "8001:8000"
+#     environment:
+#       - INFLUXDB_URL=http://influxdb:8086
+#       - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-wisevision-token}
+#       - INFLUXDB_ORG=${INFLUXDB_ORG:-wisevision}
+#       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-wisevision}
+#     restart: unless-stopped
+#     networks:
+#       - wisevision-network
+#     depends_on:
+#       - influxdb
+
+#   # InfluxDB - Time Series Database for Historical Data (for standalone use)
+#   influxdb:
+#     image: influxdb:2.7
+#     ports:
+#       - "8086:8086"
+#     environment:
+#       - DOCKER_INFLUXDB_INIT_MODE=setup
+#       - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUXDB_USERNAME:-admin}
+#       - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_PASSWORD:-wisevision}
+#       - DOCKER_INFLUXDB_INIT_ORG=${INFLUXDB_ORG:-wisevision}
+#       - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_BUCKET:-wisevision}
+#       - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_TOKEN:-wisevision-token}
+#     volumes:
+#       - influxdb-data:/var/lib/influxdb2
+#     restart: unless-stopped
+#     networks:
+#       - wisevision-network
+
+# networks:
+#   wisevision-network:
+#     driver: bridge
+
+# volumes:
+#   influxdb-data:

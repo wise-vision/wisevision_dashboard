@@ -40,811 +40,705 @@ def ros_message_to_dict(msg):
             result[clean_field_name] = value
     return result
 
+"""
+ROS2 Manager Service
+
+This service provides a bridge between the dashboard and the ROS2 ecosystem.
+It handles:
+- Discovery of topics, services, and actions
+- Subscribing to topics and converting messages to JSON
+- Publishing messages to topics
+- Calling services
+- Sending goals to action servers
+- Monitoring ROS2 node health
+
+All interactions with the ROS2 system should go through this manager.
+"""
+
+import json
+import logging
+import threading
+import time
+from datetime import datetime
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, Set
+
+import rclpy
+from rclpy.node import Node
+from rclpy.callback_groups import ReentrantCallbackGroup
+from rclpy.executors import MultiThreadedExecutor
+from rclpy.parameter import Parameter
+from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy, QoSDurabilityPolicy
+from rclpy.task import Future
+from rosidl_runtime_py import message_to_ordereddict, set_message_fields
+from rosidl_runtime_py.utilities import get_message, get_service, get_action
+
+# Set up logging
+logger = logging.getLogger(__name__)
+
 class ROS2Manager:
+    """
+    Manager class for ROS2 interactions, designed as a singleton.
+    Provides methods for discovering and interacting with ROS2 topics,
+    services, and actions.
+    """
+    _instance = None
+    _initialized = False
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(ROS2Manager, cls).__new__(cls)
+        return cls._instance
+
     def __init__(self):
-        rclpy.init()
-        self.node = Node('ros2_topic_list_node')
-        self.subscriber_node = Node('ros2_subscriber_node')
-        self.executor = MultiThreadedExecutor()
-        self.executor.add_node(self.node)
-        self.executor.add_node(self.subscriber_node)
-        self.stop_requested = False
+        if self._initialized:
+            return
 
-    def spin(self):
+        # Initialize ROS2
+        self._initialize_ros2()
+        
+        # Track subscriptions, publishers, etc.
+        self._subscriptions = {}  # topic_name -> (subscription, callback_id)
+        self._publishers = {}  # topic_name -> publisher
+        self._service_clients = {}  # service_name -> client
+        self._action_clients = {}  # action_name -> client
+        self._subscription_callbacks = {}  # callback_id -> (user_callback, is_active)
+        self._next_callback_id = 0
+        
+        # Topic cache for faster lookups
+        self._topics_cache = None
+        self._topics_cache_timestamp = None
+        self._topic_types_cache = {}  # topic_name -> msg_type_str
+        
+        # Cache of message and service types (to avoid repeated imports)
+        self._msg_type_cache = {}  # msg_type_name -> msg_class
+        self._srv_type_cache = {}  # srv_type_name -> srv_class
+        self._action_type_cache = {}  # action_type_name -> action_class
+        
+        # Thread safety
+        self._lock = threading.RLock()
+        
+        self._initialized = True
+        
+        logger.info("ROS2Manager initialized successfully")
+
+    def _initialize_ros2(self):
+        """Initialize ROS2 node and executor"""
         try:
-            print("Starting Executor...")
-            while rclpy.ok() and not self.stop_requested:
-                self.executor.spin_once(timeout_sec=0.1)
-        except KeyboardInterrupt:
-            print("Executor interrupted by KeyboardInterrupt.")
-        finally:
-            self.shutdown()
-
-    def filter_topics(self, topics, default_filter=True, message_types=None, message_namespaces=None, name_contains=None):
-        if message_types is None:
-            message_types = []
-        if message_namespaces is None:
-            message_namespaces = []
-        if name_contains is None:
-            name_contains = []
-
-        default_topics = {"/parameter_events", "/rosout", "/notifications"}
-
-        filtered_topics = []
-        for name, topic_type in topics:
-            topic_type = topic_type.strip()
-
-            if default_filter and name in default_topics:
-                continue
-
-            namespace = "/".join(name.split("/")[:-1])
-
-            match_msg_type = not message_types or topic_type in message_types
-            match_namespace = not message_namespaces or any(namespace.startswith(ns) for ns in message_namespaces)
-            match_name = not name_contains or any(substring in name for substring in name_contains)
-
-            if match_msg_type and match_namespace and match_name:
-                filtered_topics.append((name, topic_type))
-
-        return filtered_topics
-
-    def get_topic_list(self, default_filter=True, message_types=None, message_namespaces=None, name_contains=None):
-        topics = self.node.get_topic_names_and_types()
-        topics = [(name, types[0] if types else "UnknownType") for name, types in topics]
-        return self.filter_topics(topics, default_filter, message_types, message_namespaces, name_contains)
-    
-    
-    def get_topics_types(self):
-        topics = self.node.get_topic_names_and_types()
-        topic_types = set()
-
-        for _, types in topics:
-            if types:
-                topic_types.update(types)
-
-        return list(topic_types) 
-    
-    def get_namespaces(self):
-        """
-        Retrieves unique namespaces of available topics in ROS2
-        and returns them as a hierarchical dictionary structure.
-
-        :return: A dictionary representing the hierarchical structure of namespaces, e.g.:
-        {
-            "ns_1": {
-                "ns_2": {
-                    "ns_3": {},
-                    "ns_4": {}
-                }
-            }
-        }
-        """
-        topics = self.node.get_topic_names_and_types()
-        namespace_tree = {}
-
-        for name, _ in topics:
-            namespace_parts = name.strip("/").split("/")[:-1]
+            # Initialize ROS2 if it hasn't been initialized already
+            if not rclpy.ok():
+                rclpy.init()
             
-            if not namespace_parts:
-                continue
+            # Create a node with a ReentrantCallbackGroup to allow callbacks from multiple threads
+            self._node = rclpy.create_node(
+                'wisevision_dashboard_bridge',
+                namespace='',
+                allow_undeclared_parameters=True,
+                automatically_declare_parameters_from_overrides=True,
+                parameter_overrides=[
+                    Parameter('use_sim_time', Parameter.Type.BOOL, False)
+                ],
+                callback_group=ReentrantCallbackGroup()
+            )
+            
+            # Create a multithreaded executor for handling callbacks
+            self._executor = MultiThreadedExecutor()
+            self._executor.add_node(self._node)
+            
+            # Start a thread to spin the executor
+            self._executor_thread = threading.Thread(
+                target=self._spin_executor, 
+                daemon=True
+            )
+            self._executor_thread.start()
+            
+            logger.info("ROS2 node and executor initialized")
+        except Exception as e:
+            logger.error(f"Failed to initialize ROS2: {e}")
+            raise
 
-            current_level = namespace_tree
-            for part in namespace_parts:
-                if part not in current_level:
-                    current_level[part] = {} 
-                current_level = current_level[part]
-
-        return namespace_tree
-
-    def get_service_list(self):
-        services = self.node.get_service_names_and_types()
-        ros_services = ROS2Services()
-        for name, types in services:
-            service_type = types[0] if types else 'UnknownType'
-            ros_services.add_service(ROS2Service(name, service_type))
-        return ros_services
-    
-    def replace_percent_with_slash(self, topic_name):
-        return topic_name.replace('%2F', '/')
-    
-    
-    def serialize_ros_message_sub(self, msg):
-        result = {}
-        for field_name, field_type in msg.get_fields_and_field_types().items():
-            value = getattr(msg, field_name)
-
-            if hasattr(value, 'get_fields_and_field_types'):
-                result[field_name] = self.serialize_ros_message_sub(value)
-            elif isinstance(value, list):
-                serialized_list = []
-                for item in value:
-                    if hasattr(item, 'get_fields_and_field_types'):
-                        serialized_list.append(self.serialize_ros_message_sub(item))
-                    elif isinstance(item, (array.array, tuple)):
-                        serialized_list.append(list(item))
-                    else:
-                        serialized_list.append(item)
-                result[field_name] = serialized_list
-            elif isinstance(value, (array.array, tuple)):
-                result[field_name] = list(value)
-            elif isinstance(value, np.ndarray):  # Handle numpy arrays
-                result[field_name] = value.tolist()
-            elif isinstance(value, (bytes, bytearray)):
-                result[field_name] = value.decode('utf-8', errors='ignore')
-            elif isinstance(value, (int, float, str, bool, type(None))):
-                result[field_name] = value
-            elif isinstance(value, dict):
-                serialized_dict = {}
-                for k, v in value.items():
-                    serialized_dict[k] = self.serialize_ros_message_sub(v) if hasattr(v, 'get_fields_and_field_types') else v
-                result[field_name] = serialized_dict
-            else:
-                print(f"Unsupported type for JSON serialization: {field_name} of type {type(value)}")
-                result[field_name] = str(value)
-
-        return result
-
-    
-    def get_topic_message(self, topic_name, topic_type):
-        msg_type = get_message(topic_type)
-        if not msg_type:
-            raise ImportError(f"Could not find message type {topic_type}")
-
-        message_future = Future()
-
-        def callback(msg):
-            if not message_future.done():
-                message_future.set_result(msg)
-
-        subscription = self.node.create_subscription(msg_type, topic_name, callback, QoSProfile(depth=1))
-
+    def _spin_executor(self):
+        """Thread function to spin the ROS2 executor"""
         try:
-            rclpy.spin_until_future_complete(self.node, message_future, timeout_sec=5.0)
-
-            if message_future.done():
-                serialized_message = self.serialize_ros_message_sub(message_future.result())
-                return serialized_message
-            else:
-                return {"error": "No message arrived within 5 seconds"}
-
+            while rclpy.ok():
+                self._executor.spin_once(timeout_sec=0.1)
+        except Exception as e:
+            logger.error(f"Error in executor thread: {e}")
         finally:
-            self.node.destroy_subscription(subscription)
-    # Automatic Action services
-    def call_automatic_action_service(self, params):
-        service_type = get_service('lora_msgs/srv/AutomaticAction')
-        if not service_type:
-            raise ImportError("Service type not found for 'AutomaticAction'")
-
-        client = self.node.create_client(service_type, '/create_automatic_action')
-        while not client.wait_for_service(timeout_sec=1.0):
-            if not rclpy.ok():
-                raise Exception("Interrupted while waiting for the service. ROS shutdown.")
-
-        request = service_type.Request(**params)
-
-        future = client.call_async(request)
-        rclpy.spin_until_future_complete(self.node, future)
-        response = future.result()
-
-        return response.success if response else False
-    
-    def call_delete_automatic_action_service(self, params):
-        service_type = get_service('lora_msgs/srv/AutomaticActionDelete')
-        if not service_type:
-            raise ImportError("Service type not found for 'AutomaticActionDelete'")
-
-        client = self.node.create_client(service_type, '/delete_automatic_action')
-        while not client.wait_for_service(timeout_sec=1.0):
-            if not rclpy.ok():
-                raise Exception("Interrupted while waiting for the service. ROS shutdown.")
-
-        request = service_type.Request(listen_topic_to_delete=params.get('listen_topic_to_delete'))
-
-        future = client.call_async(request)
-        rclpy.spin_until_future_complete(self.node, future)
-        response = future.result()
-
-        return response.success if response else False
-    
-    def call_combined_automatic_action_service(self, params):
-        service_type = get_service('lora_msgs/srv/AutomaticActionConnection')
-        if not service_type:
-            raise ImportError("Service type not found for 'AutomaticActionConnection'")
-
-        client = self.node.create_client(service_type, '/create_combined_automatic_action')
-        while not client.wait_for_service(timeout_sec=1.0):
-            if not rclpy.ok():
-                raise Exception("Interrupted while waiting for the service. ROS shutdown.")
-
-        request = service_type.Request(
-            listen_topics=params.get('listen_topics', []),
-            logic_expression=params.get('logic_expression', ''),
-            action_and_publisher_name=params.get('action_and_publisher_name', ''),
-            trigger_text=params.get('trigger_text', ''),
-            publication_method=params.get('publication_method')
-        )
-
-        future = client.call_async(request)
-        rclpy.spin_until_future_complete(self.node, future)
-        response = future.result()
-
-        return response.success if response else False
-    
-    def call_delete_combined_automatic_action_service(self, params):
-        service_type = get_service('lora_msgs/srv/AutomaticActionCombinedDelete')
-        if not service_type:
-            raise ImportError("Service type not found for 'AutomaticActionCombinedDelete'")
-
-        client = self.node.create_client(service_type, '/delete_combined_automatic_action')
-        while not client.wait_for_service(timeout_sec=1.0):
-            if not rclpy.ok():
-                raise Exception("Interrupted while waiting for the service. ROS shutdown.")
-
-        request = service_type.Request(
-            name_of_combined_topics_publisher=params.get('name_of_combined_topics_publisher')
-        )
-
-        future = client.call_async(request)
-        rclpy.spin_until_future_complete(self.node, future)
-        response = future.result()
-
-        return response.success if response else False
-    
-    def call_available_topics_service(self):
-        service_type = get_service('lora_msgs/srv/AvailableTopics')
-        if not service_type:
-            raise ImportError("Service type not found for 'AvailableTopics'")
-
-        client = self.node.create_client(service_type, '/available_topics')
-        while not client.wait_for_service(timeout_sec=1.0):
-            if not rclpy.ok():
-                raise Exception("Interrupted while waiting for the service. ROS shutdown.")
-
-        request = service_type.Request()
-
-        future = client.call_async(request)
-        rclpy.spin_until_future_complete(self.node, future)
-        response = future.result()
-
-        if response:
-            return [ros_message_to_dict(topic) for topic in response.available_topics_with_parameters_and_time]
-        else:
-            return []
-    def call_available_topics_combined_service(self):
-        service_type = get_service('lora_msgs/srv/AvailableTopicsCombined')
-        if not service_type:
-            raise ImportError("Service type not found for 'AvailableTopicsCombined'")
-
-        client = self.node.create_client(service_type, '/available_topics_combined')
-        while not client.wait_for_service(timeout_sec=1.0):
-            if not rclpy.ok():
-                raise Exception("Interrupted while waiting for the service. ROS shutdown.")
-
-        request = service_type.Request()
-
-        future = client.call_async(request)
-        rclpy.spin_until_future_complete(self.node, future)
-        response = future.result()
-
-        if response:
-            return [ros_message_to_dict(topic) for topic in response.available_combined_topics_with_parameters_and_time]
-        else:
-            return []
-        
-    def call_change_automatic_action_service(self, params):
-        service_type = get_service('lora_msgs/srv/ChangeAutomaticAction')
-        if not service_type:
-            raise ImportError("Service type not found for 'ChangeAutomaticAction'")
-
-        client = self.node.create_client(service_type, '/change_automatic_action')
-        while not client.wait_for_service(timeout_sec=1.0):
-            if not rclpy.ok():
-                raise Exception("Interrupted while waiting for the service. ROS shutdown.")
-
-        request = service_type.Request(**params)
-
-        future = client.call_async(request)
-        rclpy.spin_until_future_complete(self.node, future)
-        response = future.result()
-
-        return response.success if response else False
-    
-    def call_change_automatic_action_combined_service(self, params):
-        service_type = get_service('lora_msgs/srv/ChangeAutomaticActionCombined')
-        if not service_type:
-            raise ImportError("Service type not found for 'ChangeAutomaticActionCombined'")
-
-        client = self.node.create_client(service_type, '/change_combined_automatic_action')
-        while not client.wait_for_service(timeout_sec=1.0):
-            if not rclpy.ok():
-                raise Exception("Interrupted while waiting for the service. ROS shutdown.")
-
-        request = service_type.Request(**params)
-
-        future = client.call_async(request)
-        rclpy.spin_until_future_complete(self.node, future)
-        response = future.result()
-
-        return response.success if response else False
-    
-    # END OF: Automatic Action services
-    def call_get_messages_service(self, params):
-        service_type = get_service('lora_msgs/srv/GetMessages')
-        if not service_type:
-            raise ImportError("Service type not found for 'GetMessages'")
-        
-        client = self.node.create_client(service_type, '/get_messages')
-        while not client.wait_for_service(timeout_sec=1.0):
-            if not rclpy.ok():
-                raise Exception("Interrupted while waiting for the service. ROS shutdown.")
-
-
-        request = service_type.Request(**params)
-
-        future = client.call_async(request)
-        rclpy.spin_until_future_complete(self.node, future)
-        response = future.result()
-
-        if response:
-            return {
-                'int32_msgs': response.int32_msgs,
-                'micro_publisher_data': response.micro_publisher_data,
-                'timestamps': response.timestamps
-            }
-        else:
-            return None
-
-    # GPS Devices services
-    def get_gps_devices_message(self):
-        msg_type = get_message('wisevision_msgs/msg/GpsDevicesPublisher')
-        topic_name = self.replace_percent_with_slash('/gps_devices_data')
-        if not msg_type:
-            raise ImportError(f"Could not find message type 'wisevision_msgs/msg/GpsDevicesPublisher'")
-
-        message_future = Future()
-
-        def callback(msg):
-            if not message_future.done():
-                message_future.set_result(msg)
-
-        subscription = self.node.create_subscription(msg_type, topic_name, callback, QoSProfile(depth=1))
-
-        try:
-            rclpy.spin_until_future_complete(self.node, message_future, timeout_sec=60.0)
-
-            if message_future.done():
-                serialized_message = self.serialize_ros_message_sub(message_future.result())
-                return serialized_message
-            else:
-                return {"error": "No message arrived within 60 seconds"}
-
-        finally:
-            self.node.destroy_subscription(subscription)
-
-    def call_add_gps_device_service(self, params):
-        service_type = get_service('wisevision_msgs/srv/AddGpsDevice')
-        if not service_type:
-            raise ImportError("Service type not found for 'AddGpsDevice'")
-
-        client = self.node.create_client(service_type, '/add_gps_device')
-        while not client.wait_for_service(timeout_sec=1.0):
-            if not rclpy.ok():
-                raise Exception("Interrupted while waiting for the service. ROS shutdown.")
-        eui64_data = service_type.Request().device_eui
-        eui64_data.data = params.get('device_eui', {}).get('data', [])
-        nav_value_data = service_type.Request().nav_value
-        nav_value_data.latitude = params.get('nav_value', {}).get('latitude', 0.0)
-        nav_value_data.longitude = params.get('nav_value', {}).get('longitude', 0.0)
-        nav_value_data.altitude = params.get('nav_value', {}).get('altitude', 0.0)
-        request = service_type.Request(
-            device_name=params.get('device_name'),
-            device_eui=eui64_data,
-            nav_value=nav_value_data,
-            is_moving=params.get('is_moving')
-        )
-
-        future = client.call_async(request)
-        rclpy.spin_until_future_complete(self.node, future)
-        response = future.result()
-
-        return response.success if response else False
-    
-    def call_delete_gps_device_service(self, params):
-        service_type = get_service('wisevision_msgs/srv/DeleteGpsDevice')
-        if not service_type:
-            raise ImportError("Service type not found for 'DeleteGpsDevice'")
-
-        client = self.node.create_client(service_type, '/delete_gps_device')
-        while not client.wait_for_service(timeout_sec=1.0):
-            if not rclpy.ok():
-                raise Exception("Interrupted while waiting for the service. ROS shutdown.")
-        eui64_data = service_type.Request().device_eui
-        eui64_data.data = params.get('device_eui', {}).get('data', [])
-        request = service_type.Request(device_eui=eui64_data)
-
-        future = client.call_async(request)
-        rclpy.spin_until_future_complete(self.node, future)
-        response = future.result()
-
-        return response.success if response else False
-
-    def call_modify_gps_device_service(self, params):
-        service_type = get_service('wisevision_msgs/srv/ModifyGpsDevice')
-        if not service_type:
-            raise ImportError("Service type not found for 'ModifyGpsDevice'")
-
-        client = self.node.create_client(service_type, '/modify_gps_device')
-        while not client.wait_for_service(timeout_sec=1.0):
-            if not rclpy.ok():
-                raise Exception("Interrupted while waiting for the service. ROS shutdown.")
-        eui64_data = service_type.Request().device_eui
-        eui64_data.data = params.get('device_eui', {}).get('data', [])
-        nav_value_data = service_type.Request().nav_value
-        nav_value_data.latitude = params.get('nav_value', {}).get('latitude', 0.0)
-        nav_value_data.longitude = params.get('nav_value', {}).get('longitude', 0.0)
-        nav_value_data.altitude = params.get('nav_value', {}).get('altitude', 0.0)
-        request = service_type.Request(
-            device_name=params.get('device_name'),
-            device_eui=eui64_data,
-            nav_value=nav_value_data
-        )
-
-        future = client.call_async(request)
-        rclpy.spin_until_future_complete(self.node, future)
-        response = future.result()
-
-        return response.success if response else False
-    # END OF: GPS Devices services
-
-    # Blackbox services
-
-    def call_add_storage_service(self, params):
-        service_type = get_service('wisevision_msgs/srv/AddStorageToDataBase')
-        if not service_type:
-            raise ImportError("Service type not found for 'AddStorageToDataBase'")
-
-        client = self.node.create_client(service_type, '/add_storage_to_database')
-        while not client.wait_for_service(timeout_sec=1.0):
-            if not rclpy.ok():
-                raise Exception("Interrupted while waiting for the service. ROS shutdown.")
-
-        request = service_type.Request(
-            storage_name=params.get('storage_name'),
-        )
-
-        future = client.call_async(request)
-        rclpy.spin_until_future_complete(self.node, future)
-        response = future.result()
-
-        return response.success if response else False
-    
-    def call_create_database_service(self, params):
-        service_type = get_service('wisevision_msgs/srv/CreateDataBase')
-        if not service_type:
-            raise ImportError("Service type not found for 'CreateDataBase'")
-
-        client = self.node.create_client(service_type, '/create_database')
-        while not client.wait_for_service(timeout_sec=1.0):
-            if not rclpy.ok():
-                raise Exception("Interrupted while waiting for the service. ROS shutdown.")
-
-        request = service_type.Request(
-            key_expr=params.get('key_expr'),
-            volume_id=params.get('volume_id'),
-            db_name=params.get('db_name'),
-            create_db=params.get('create_db')
-        )
-
-        future = client.call_async(request)
-        rclpy.spin_until_future_complete(self.node, future)
-        response = future.result()
-
-        return response.success if response else False
-
-    def call_get_last_message_service(self, params):
-        
-        service_type = get_service('lora_msgs/srv/GetMessages')
-        if not service_type:
-            raise ImportError("Service type not found for 'GetMessages'")
-
-        client = self.node.create_client(service_type, '/get_messages')
-        while not client.wait_for_service(timeout_sec=1.0):
-            if not rclpy.ok():
-                raise Exception("Interrupted while waiting for the service. ROS shutdown.")
-
-        request = service_type.Request()
-        request.topic_name = params.get('topic_name')
-        print('topic_name:', request.topic_name)
-        request.message_type = params.get('message_type')
-        print('message_type:', request.message_type)
-        request.number_of_msgs = 1
-
-        future = client.call_async(request)
-        print('params:')
-        rclpy.spin_until_future_complete(self.node, future)
-        response = future.result()
-        
-        if response:
-            return {
-                'int32_msgs': response.int32_msgs,
-                'micro_publisher_data': response.micro_publisher_data,
-                'timestamps': response.timestamps
-            }
-        else:
-            self.get_logger().error('Error while retrieving messages from the service.')
-            return None  
-
-    def call_get_messages_service_any(self, params):
-        service_type = get_service('lora_msgs/srv/GetMessages')
-        if not service_type:
-            raise ImportError("Service type not found for 'GetMessages'")
-        client = self.node.create_client(service_type, '/get_messages')
-        while not client.wait_for_service(timeout_sec=1.0):
-            if not rclpy.ok():
-                raise Exception("Interrupted while waiting for the service. ROS shutdown.")
-
-        request = service_type.Request()
-        topic_name = params.get('topic_name')
-        request.topic_name = topic_name
-        request.message_type = 'any'
-        request.number_of_msgs = params.get('number_of_msgs', 0)
-
-        def parse_iso8601_to_fulldatetime(iso8601_str):
-            FullDateTime = get_message('lora_msgs/msg/FullDateTime')
-
-            dt = parser.isoparse(iso8601_str)
-
-            full_datetime = FullDateTime()
-            full_datetime.year = dt.year
-            full_datetime.month = dt.month
-            full_datetime.day = dt.day
-            full_datetime.hour = dt.hour
-            full_datetime.minute = dt.minute
-            full_datetime.second = dt.second
-            full_datetime.nanosecond = dt.microsecond * 1000 
-
-            return full_datetime
-
-        if 'time_start' in params:
-            request.time_start = parse_iso8601_to_fulldatetime(params['time_start'])
-        if 'time_end' in params:
-            request.time_end = parse_iso8601_to_fulldatetime(params['time_end'])
-
-
-        future = client.call_async(request)
-        rclpy.spin_until_future_complete(self.node, future)
-        if future.done():
-            print("Service call completed")
-        else:
-            print("Service call did not complete within the timeout")
-        response = future.result()
-
-        if response:
+            logger.info("Executor thread stopping")
+
+    def _get_msg_type(self, msg_type_name: str):
+        """Get a message class from its type name, with caching"""
+        if msg_type_name not in self._msg_type_cache:
             try:
-                MessageType = get_message(params.get('message_type'))
-                messages = []
-                data = response.data
-                offset = 0
+                self._msg_type_cache[msg_type_name] = get_message(msg_type_name)
+            except (AttributeError, ModuleNotFoundError) as e:
+                logger.error(f"Failed to get message type {msg_type_name}: {e}")
+                raise ValueError(f"Unknown message type: {msg_type_name}")
+        return self._msg_type_cache[msg_type_name]
 
-                while offset < len(data):
-                    message_length = int.from_bytes(data[offset:offset + 4], byteorder='big')
-                    offset += 4
+    def _get_srv_type(self, srv_type_name: str):
+        """Get a service class from its type name, with caching"""
+        if srv_type_name not in self._srv_type_cache:
+            try:
+                self._srv_type_cache[srv_type_name] = get_service(srv_type_name)
+            except (AttributeError, ModuleNotFoundError) as e:
+                logger.error(f"Failed to get service type {srv_type_name}: {e}")
+                raise ValueError(f"Unknown service type: {srv_type_name}")
+        return self._srv_type_cache[srv_type_name]
 
-                    message_data = bytes(data[offset:offset + message_length])
-                    offset += message_length
+    def _get_action_type(self, action_type_name: str):
+        """Get an action class from its type name, with caching"""
+        if action_type_name not in self._action_type_cache:
+            try:
+                self._action_type_cache[action_type_name] = get_action(action_type_name)
+            except (AttributeError, ModuleNotFoundError) as e:
+                logger.error(f"Failed to get action type {action_type_name}: {e}")
+                raise ValueError(f"Unknown action type: {action_type_name}")
+        return self._action_type_cache[action_type_name]
 
-                    message = deserialize_message(message_data, MessageType())
-                    messages.append(message)
-
-
-                def serialize_ros_message(msg):
-                    result = {}
-                    for field_name, field_type in msg.get_fields_and_field_types().items():
-                        value = getattr(msg, field_name)
-
-                        if hasattr(value, 'get_fields_and_field_types'):
-                            result[field_name] = serialize_ros_message(value)
-                        elif isinstance(value, list):
-                            serialized_list = []
-                            for item in value:
-                                if hasattr(item, 'get_fields_and_field_types'):
-                                    serialized_list.append(serialize_ros_message(item))
-                                elif isinstance(item, (array.array, tuple)):
-                                    serialized_list.append(list(item))
-                                else:
-                                    serialized_list.append(item)
-                            result[field_name] = serialized_list
-                        elif isinstance(value, (array.array, tuple)):
-                            result[field_name] = list(value)
-                        elif isinstance(value, np.ndarray):
-                            result[field_name] = value.tolist()
-                        elif isinstance(value, (bytes, bytearray)):
-                            result[field_name] = value.decode('utf-8', errors='ignore')
-                        elif isinstance(value, (int, float, str, bool)):
-                            result[field_name] = value
-                        else:
-                            print(f"Unsupported type for JSON serialization: {field_name} of type {type(value)}")
-                            result[field_name] = str(value)
-
-                    return result
-                serialized_response = {
-                    'timestamps': [serialize_ros_message(timestamp) for timestamp in response.timestamps],
-                    'messages': [serialize_ros_message(msg) for msg in messages]
-                }
-
-                return serialized_response
-            except Exception as e:
-                raise Exception(f"Message deserialization error:” {e}")
-        else:
-            return None
-    
-    # END OF: Blackbox services
-
-    def get_topic_message_type(self, topic_name):
-        topics = self.node.get_topic_names_and_types()
-        for name, types in topics:
-            if name == topic_name:
-                return types[0] if types else 'UnknownType'
-        return None
-    
-    # Get nested message fields  unique type
-    def get_message_field_types(self, message_structure):
-        """
-        Retrieves unique field types from a given ROS2 message structure.
-
-        :param message_structure: The full message structure as a dictionary.
-        :return: A list of unique field types.
-        """
-        unique_types = set()  # Using a set to avoid duplicates
-
-        def recursive_extract(struct):
-            """Recursively extract field types from nested message structures."""
-            if isinstance(struct, dict):
-                for value in struct.values():
-                    if isinstance(value, dict) or isinstance(value, list):
-                        recursive_extract(value)  # Recursively process nested structures
-                    elif isinstance(value, str):  # Only store type strings
-                        unique_types.add(value)
-            elif isinstance(struct, list):
-                for item in struct:
-                    if isinstance(item, str):  # Lists of types (e.g., covariance arrays)
-                        unique_types.add(item)
-
-        recursive_extract(message_structure)
-        return list(unique_types)  # Convert to list for JSON response
+    def get_topics(self) -> List[Dict[str, str]]:
+        """Get a list of all available ROS2 topics with their types"""
+        # Use cached topics if they're fresh (less than 5 seconds old)
+        current_time = time.time()
+        if self._topics_cache is not None and current_time - self._topics_cache_timestamp < 5.0:
+            return self._topics_cache
+        
+        topic_names_and_types = self._node.get_topic_names_and_types()
+        topics = []
+        
+        for topic_name, type_list in topic_names_and_types:
+            # Skip hidden topics
+            if topic_name.startswith('/_'):
+                continue
             
+            for topic_type in type_list:
+                topics.append({
+                    'name': topic_name,
+                    'type': topic_type
+                })
+                # Update the topic types cache
+                self._topic_types_cache[topic_name] = topic_type
+        
+        # Cache the results
+        self._topics_cache = topics
+        self._topics_cache_timestamp = current_time
+        
+        return topics
 
-    # Get nested message fields
+    def get_topic_type(self, topic_name: str) -> str:
+        """Get the message type of a topic"""
+        # Try the cache first
+        if topic_name in self._topic_types_cache:
+            return self._topic_types_cache[topic_name]
+        
+        # If not in cache, refresh the topic list
+        topics = self.get_topics()
+        for topic in topics:
+            if topic['name'] == topic_name:
+                return topic['type']
+        
+        raise ValueError(f"Topic {topic_name} not found")
 
-    def filter_message_structure(self, message_structure, include_types=None, exclude_types=None):
+    def _msg_to_dict(self, msg) -> Dict[str, Any]:
+        """Convert a ROS2 message to a dictionary, handling timestamps appropriately"""
+        try:
+            # Convert the message to a dictionary
+            result = message_to_ordereddict(msg)
+            
+            # Add metadata
+            result['_meta'] = {
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            return result
+        except Exception as e:
+            logger.error(f"Error converting message to dictionary: {e}")
+            return {'error': str(e)}
+
+    def _dict_to_msg(self, msg_type_name: str, data: Dict[str, Any]):
+        """Convert a dictionary to a ROS2 message"""
+        try:
+            # Get the message class
+            msg_class = self._get_msg_type(msg_type_name)
+            
+            # Create an instance of the message
+            msg = msg_class()
+            
+            # Remove metadata if present
+            data_copy = data.copy()
+            if '_meta' in data_copy:
+                del data_copy['_meta']
+            
+            # Set the message fields
+            set_message_fields(msg, data_copy)
+            
+            return msg
+        except Exception as e:
+            logger.error(f"Error converting dictionary to message: {e}")
+            raise
+
+    def subscribe_topic(self, topic_name: str, callback: Callable[[Dict[str, Any]], None]) -> int:
         """
-        Filters the given message structure based on specified data types.
-
-        :param message_structure: The original message structure as a dictionary.
-        :param include_types: A list of data types to include (if provided, only these types will be kept).
-        :param exclude_types: A list of data types to exclude (if provided, these types will be removed).
-        :return: The filtered message structure.
+        Subscribe to a ROS2 topic and call the callback when messages are received
+        
+        Args:
+            topic_name: Name of the topic to subscribe to
+            callback: Function to call with the received message as a dictionary
+            
+        Returns:
+            Subscription ID (used for unsubscribing)
         """
-        if include_types is None:
-            include_types = []
-        if exclude_types is None:
-            exclude_types = []
-
-        def recursive_filter(struct):
-            """Recursively filters the message structure."""
-            if isinstance(struct, dict):
-                filtered = {}
-                for key, value in struct.items():
-                    if isinstance(value, dict) or isinstance(value, list):
-                        # Recursively filter nested structures
-                        filtered_value = recursive_filter(value)
-                        if filtered_value:  # Keep only non-empty values
-                            filtered[key] = filtered_value
-                    elif isinstance(value, str):  # Only check types if it's a string (type declaration)
-                        if (include_types and value not in include_types) or (exclude_types and value in exclude_types):
-                            continue  # Skip this field
-                        filtered[key] = value
-                return filtered
-            elif isinstance(struct, list):
-                return [recursive_filter(item) for item in struct if isinstance(item, str) and
-                        ((not include_types or item in include_types) and (not exclude_types or item not in exclude_types))]
-            return struct
-
-        return recursive_filter(message_structure)
-
-    def get_message_structure(self, message_type_str):
-        message_type_str = self.normalize_message_type(message_type_str)
-        msg_class = get_message(message_type_str)
-        if msg_class is None:
-            raise Exception(f"Message type '{message_type_str}' not found")
-        return self._get_message_structure_recursive(msg_class, processed_types=set())
-
-    def normalize_message_type(self, type_str):
-        if type_str.count('/') == 2:
-            return type_str
-        elif type_str.count('/') == 1:
-            package_name, message_name = type_str.split('/')
-            return f"{package_name}/msg/{message_name}"
-        else:
-            return type_str
-
-    def _get_message_structure_recursive(self, msg_class, processed_types, depth=0):
-        indent = '  ' * depth
-        package_name = msg_class.__module__.split('.')[0]
-        msg_type_name = f"{package_name}/msg/{msg_class.__name__}"
-
-        if msg_type_name in processed_types:
-            return msg_type_name  # Avoid infinite recursion
-
-        processed_types.add(msg_type_name)
-        structure = OrderedDict()
-
-        for field_name, field_type_str in msg_class._fields_and_field_types.items():
-            field_type = self._parse_field_type(field_type_str)
-
-            if field_type['is_array']:
-                element_type = field_type['type']
-                if self._is_primitive_type(element_type):
-                    structure[field_name] = [element_type]
-                else:
-                    nested_msg_class = get_message(element_type)
-                    if nested_msg_class is not None:
-                        structure[field_name] = [
-                            self._get_message_structure_recursive(
-                                nested_msg_class, processed_types, depth + 1
-                            )
-                        ]
-                    else:
-                        structure[field_name] = [element_type]
+        with self._lock:
+            # Get the message type
+            msg_type_name = self.get_topic_type(topic_name)
+            msg_class = self._get_msg_type(msg_type_name)
+            
+            # Define QoS profile - default to best effort for faster delivery
+            qos = QoSProfile(
+                reliability=QoSReliabilityPolicy.BEST_EFFORT,
+                durability=QoSDurabilityPolicy.VOLATILE,
+                history=QoSHistoryPolicy.KEEP_LAST,
+                depth=10
+            )
+            
+            # Assign a callback ID
+            callback_id = self._next_callback_id
+            self._next_callback_id += 1
+            
+            # Store the user callback
+            self._subscription_callbacks[callback_id] = (callback, True)  # (callback, is_active)
+            
+            # Define the subscription callback
+            def subscription_callback(msg):
+                # If the subscription is not active, ignore the message
+                if not self._subscription_callbacks.get(callback_id, (None, False))[1]:
+                    return
+                
+                # Convert the message to a dictionary
+                msg_dict = self._msg_to_dict(msg)
+                
+                # Add topic and type information
+                msg_dict['_meta']['topic'] = topic_name
+                msg_dict['_meta']['type'] = msg_type_name
+                
+                # Call the user callback
+                try:
+                    callback(msg_dict)
+                except Exception as e:
+                    logger.error(f"Error in topic callback for {topic_name}: {e}")
+            
+            # Create a subscription if one doesn't exist
+            if topic_name not in self._subscriptions:
+                subscription = self._node.create_subscription(
+                    msg_class,
+                    topic_name,
+                    subscription_callback,
+                    qos
+                )
+                self._subscriptions[topic_name] = (subscription, {callback_id})
             else:
-                if self._is_primitive_type(field_type['type']):
-                    structure[field_name] = field_type['type']
-                else:
-                    nested_msg_class = get_message(field_type['type'])
-                    if nested_msg_class is not None:
-                        structure[field_name] = self._get_message_structure_recursive(
-                            nested_msg_class, processed_types, depth + 1
-                        )
+                # Add the callback to the existing subscription
+                subscription, callbacks = self._subscriptions[topic_name]
+                callbacks.add(callback_id)
+                self._subscriptions[topic_name] = (subscription, callbacks)
+            
+            logger.info(f"Subscribed to topic {topic_name} with ID {callback_id}")
+            return callback_id
+
+    def unsubscribe_topic(self, subscription_id: int) -> bool:
+        """
+        Unsubscribe from a topic callback
+        
+        Args:
+            subscription_id: ID returned from subscribe_topic
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        with self._lock:
+            if subscription_id not in self._subscription_callbacks:
+                logger.warning(f"Subscription ID {subscription_id} not found")
+                return False
+            
+            # Remove the callback
+            del self._subscription_callbacks[subscription_id]
+            
+            # Find and update the subscription
+            for topic_name, (subscription, callbacks) in list(self._subscriptions.items()):
+                if subscription_id in callbacks:
+                    callbacks.remove(subscription_id)
+                    
+                    # If no more callbacks, destroy the subscription
+                    if not callbacks:
+                        self._node.destroy_subscription(subscription)
+                        del self._subscriptions[topic_name]
                     else:
-                        structure[field_name] = field_type['type']
+                        self._subscriptions[topic_name] = (subscription, callbacks)
+                    
+                    logger.info(f"Unsubscribed from topic {topic_name} with ID {subscription_id}")
+                    return True
+            
+            logger.warning(f"Subscription ID {subscription_id} not found in active subscriptions")
+            return False
 
-        return structure
+    def pause_subscription(self, subscription_id: int) -> bool:
+        """
+        Pause a topic subscription (messages will be received but callback won't be called)
+        
+        Args:
+            subscription_id: ID returned from subscribe_topic
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        with self._lock:
+            if subscription_id not in self._subscription_callbacks:
+                return False
+            
+            callback, _ = self._subscription_callbacks[subscription_id]
+            self._subscription_callbacks[subscription_id] = (callback, False)
+            return True
 
-    def _parse_field_type(self, field_type_str):
-        field_info = {'type': None, 'is_array': False}
-        if field_type_str.startswith('sequence<'):
-            field_info['is_array'] = True
-            element_type = field_type_str[9:-1]
-            field_info['type'] = self.normalize_message_type(element_type)
-        elif '[' in field_type_str and field_type_str.endswith(']'):
-            field_info['is_array'] = True
-            element_type = field_type_str.split('[')[0]
-            field_info['type'] = self.normalize_message_type(element_type)
-        else:
-            field_info['type'] = self.normalize_message_type(field_type_str)
-        return field_info
+    def resume_subscription(self, subscription_id: int) -> bool:
+        """
+        Resume a paused topic subscription
+        
+        Args:
+            subscription_id: ID returned from subscribe_topic
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        with self._lock:
+            if subscription_id not in self._subscription_callbacks:
+                return False
+            
+            callback, _ = self._subscription_callbacks[subscription_id]
+            self._subscription_callbacks[subscription_id] = (callback, True)
+            return True
 
-    def _is_primitive_type(self, field_type):
-        primitive_types = {
-            'bool', 'boolean', 'byte', 'char',
-            'float32', 'float64', 'float', 'double',
-            'int8', 'uint8', 'int16', 'uint16',
-            'int32', 'uint32', 'int64', 'uint64',
-            'int', 'string', 'wstring'
+    def get_topic_data(self, topic_name: str, limit: int = 1) -> Dict[str, Any]:
+        """
+        Get the latest messages from a topic (blocks until messages are received)
+        
+        Args:
+            topic_name: Name of the topic
+            limit: Maximum number of messages to receive (default: 1)
+            
+        Returns:
+            Dictionary with topic information and received messages
+        """
+        messages = []
+        received_count = 0
+        
+        # Create a future to wait for messages
+        future = Future()
+        
+        # Define the callback
+        def callback(msg_dict):
+            nonlocal received_count
+            messages.append(msg_dict)
+            received_count += 1
+            if received_count >= limit:
+                future.set_result(True)
+        
+        # Subscribe to the topic
+        subscription_id = self.subscribe_topic(topic_name, callback)
+        
+        try:
+            # Wait for the future with a timeout
+            rclpy.spin_until_future_complete(
+                self._node, 
+                future, 
+                timeout_sec=5.0
+            )
+        except Exception as e:
+            logger.error(f"Error waiting for topic data: {e}")
+        finally:
+            # Clean up the subscription
+            self.unsubscribe_topic(subscription_id)
+        
+        # Get the message type
+        try:
+            msg_type = self.get_topic_type(topic_name)
+        except ValueError:
+            msg_type = "Unknown"
+        
+        return {
+            "topic_name": topic_name,
+            "msg_type": msg_type,
+            "messages": messages
         }
-        return field_type in primitive_types
-    # END OF: Get nested message fields
-       
-    def request_stop(self):
-        print("Stop requested for ROS2 executor.")
-        self.stop_requested = True
+
+    def publish_message(self, topic_name: str, msg_type_name: str, data: Dict[str, Any]) -> bool:
+        """
+        Publish a message to a ROS2 topic
+        
+        Args:
+            topic_name: Name of the topic to publish to
+            msg_type_name: Type of the message (e.g. 'std_msgs/String')
+            data: Dictionary containing the message data
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        with self._lock:
+            # Create a publisher if one doesn't exist
+            if topic_name not in self._publishers:
+                msg_class = self._get_msg_type(msg_type_name)
+                
+                qos = QoSProfile(
+                    reliability=QoSReliabilityPolicy.RELIABLE,
+                    durability=QoSDurabilityPolicy.VOLATILE,
+                    history=QoSHistoryPolicy.KEEP_LAST,
+                    depth=10
+                )
+                
+                publisher = self._node.create_publisher(
+                    msg_class,
+                    topic_name,
+                    qos
+                )
+                self._publishers[topic_name] = (publisher, msg_type_name)
+            else:
+                publisher, existing_type = self._publishers[topic_name]
+                if existing_type != msg_type_name:
+                    logger.error(
+                        f"Type mismatch for topic {topic_name}: "
+                        f"expected {existing_type}, got {msg_type_name}"
+                    )
+                    return False
+            
+            try:
+                # Convert the dictionary to a ROS2 message
+                msg = self._dict_to_msg(msg_type_name, data)
+                
+                # Publish the message
+                publisher.publish(msg)
+                return True
+            except Exception as e:
+                logger.error(f"Error publishing message to {topic_name}: {e}")
+                return False
+
+    def get_services(self) -> List[Dict[str, str]]:
+        """Get a list of all available ROS2 services with their types"""
+        service_names_and_types = self._node.get_service_names_and_types()
+        services = []
+        
+        for service_name, type_list in service_names_and_types:
+            # Skip hidden services
+            if service_name.startswith('/_'):
+                continue
+            
+            for service_type in type_list:
+                services.append({
+                    'name': service_name,
+                    'type': service_type
+                })
+        
+        return services
+
+    def call_service(
+        self, 
+        service_name: str, 
+        service_type_name: str, 
+        request_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Call a ROS2 service
+        
+        Args:
+            service_name: Name of the service to call
+            service_type_name: Type of the service (e.g. 'example_interfaces/srv/AddTwoInts')
+            request_data: Dictionary containing the request data
+            
+        Returns:
+            Dictionary containing the response data
+        """
+        with self._lock:
+            try:
+                # Create a client if one doesn't exist
+                if service_name not in self._service_clients:
+                    service_class = self._get_srv_type(service_type_name)
+                    client = self._node.create_client(service_class, service_name)
+                    self._service_clients[service_name] = client
+                else:
+                    client = self._service_clients[service_name]
+                
+                # Wait for the service to be available
+                if not client.wait_for_service(timeout_sec=5.0):
+                    raise TimeoutError(f"Service {service_name} not available")
+                
+                # Create the request
+                request = client.srv_type.Request()
+                set_message_fields(request, request_data)
+                
+                # Call the service
+                future = client.call_async(request)
+                
+                # Wait for the response
+                rclpy.spin_until_future_complete(self._node, future, timeout_sec=5.0)
+                
+                if future.done():
+                    response = future.result()
+                    if response is not None:
+                        # Convert the response to a dictionary
+                        return message_to_ordereddict(response)
+                    else:
+                        raise RuntimeError("Service call failed")
+                else:
+                    raise TimeoutError("Service call timed out")
+            except Exception as e:
+                logger.error(f"Error calling service {service_name}: {e}")
+                raise
+
+    def get_actions(self) -> List[Dict[str, str]]:
+        """Get a list of all available ROS2 actions with their types"""
+        try:
+            from rclpy.action import get_action_names_and_types
+            
+            action_names_and_types = get_action_names_and_types(self._node)
+            actions = []
+            
+            for action_name, type_list in action_names_and_types:
+                # Skip hidden actions
+                if action_name.startswith('/_'):
+                    continue
+                
+                for action_type in type_list:
+                    actions.append({
+                        'name': action_name,
+                        'type': action_type
+                    })
+            
+            return actions
+        except Exception as e:
+            logger.error(f"Error getting actions: {e}")
+            return []
+
+    def send_action_goal(
+        self,
+        action_name: str,
+        action_type_name: str,
+        goal_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Send a goal to a ROS2 action server
+        
+        Args:
+            action_name: Name of the action
+            action_type_name: Type of the action (e.g. 'example_interfaces/action/Fibonacci')
+            goal_data: Dictionary containing the goal data
+            
+        Returns:
+            Dictionary containing information about the goal
+        """
+        with self._lock:
+            try:
+                from rclpy.action import ActionClient
+                
+                # Create a client if one doesn't exist
+                if action_name not in self._action_clients:
+                    action_class = self._get_action_type(action_type_name)
+                    client = ActionClient(self._node, action_class, action_name)
+                    self._action_clients[action_name] = client
+                else:
+                    client = self._action_clients[action_name]
+                
+                # Wait for the action server to be available
+                if not client.wait_for_server(timeout_sec=5.0):
+                    raise TimeoutError(f"Action server {action_name} not available")
+                
+                # Create the goal
+                goal_msg = client._action_type.Goal()
+                set_message_fields(goal_msg, goal_data)
+                
+                # Send the goal
+                send_goal_future = client.send_goal_async(goal_msg)
+                
+                # Wait for the goal to be accepted
+                rclpy.spin_until_future_complete(self._node, send_goal_future, timeout_sec=5.0)
+                
+                if send_goal_future.done():
+                    goal_handle = send_goal_future.result()
+                    
+                    return {
+                        "goal_id": str(goal_handle.goal_id),
+                        "accepted": goal_handle.accepted
+                    }
+                else:
+                    raise TimeoutError("Action goal send timed out")
+            except Exception as e:
+                logger.error(f"Error sending action goal to {action_name}: {e}")
+                raise
+
+    def check_health(self) -> Dict[str, Any]:
+        """
+        Check the health of the ROS2 node
+        
+        Returns:
+            Dictionary with health status information
+        """
+        try:
+            # Check if ROS2 is initialized
+            if not rclpy.ok():
+                return {
+                    "status": "error",
+                    "message": "ROS2 is not initialized"
+                }
+            
+            # Check if the node is alive
+            if not self._node.context.ok():
+                return {
+                    "status": "error",
+                    "message": "ROS2 node is not alive"
+                }
+            
+            # Get some basic stats
+            topics_count = len(self.get_topics())
+            services_count = len(self.get_services())
+            actions_count = len(self.get_actions())
+            
+            return {
+                "status": "ok",
+                "node_name": self._node.get_name(),
+                "topics_count": topics_count,
+                "services_count": services_count,
+                "actions_count": actions_count,
+                "timestamp": datetime.now().isoformat()
+            }
+        except Exception as e:
+            logger.error(f"Health check failed: {e}")
+            return {
+                "status": "error",
+                "message": str(e),
+                "timestamp": datetime.now().isoformat()
+            }
 
     def shutdown(self):
-        print("Shutting down ROS2...")
-        self.executor.shutdown()
-        self.node.destroy_node()
-        self.subscriber_node.destroy_node()
-        rclpy.shutdown()
-        print("ROS2 shutdown complete.")
+        """Shutdown the ROS2 node and clean up resources"""
+        logger.info("Shutting down ROS2Manager")
+        
+        with self._lock:
+            # Clean up subscriptions
+            for topic_name, (subscription, _) in self._subscriptions.items():
+                self._node.destroy_subscription(subscription)
+            self._subscriptions.clear()
+            
+            # Clean up publishers
+            for topic_name, (publisher, _) in self._publishers.items():
+                self._node.destroy_publisher(publisher)
+            self._publishers.clear()
+            
+            # Clean up service clients
+            self._service_clients.clear()
+            
+            # Clean up action clients
+            self._action_clients.clear()
+            
+            # Shutdown ROS2 (only if we're the only node)
+            if hasattr(self, '_node') and self._node is not None:
+                self._node.destroy_node()
+                self._node = None
 
 ros2_manager = ROS2Manager()

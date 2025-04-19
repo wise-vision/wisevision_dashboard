@@ -1,24 +1,30 @@
-FROM wisevision/ros_with_wisevision_msgs_and_wisevision_core:humble
+FROM ros:humble
 
+# Set working directory
+WORKDIR /app
+
+# Install Python and pip
 RUN apt-get update && apt-get install -y \
     python3-pip \
-    python3-vcstool \
-    build-essential \
-    cmake \
-    openssh-client && \
-    rm -rf /var/lib/apt/lists/*
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /usr/src
-COPY app /usr/src/app
-
-ENV PYTHONPATH=/usr/src/app
-
-WORKDIR /usr/src/app/server
-
+# Install Python dependencies
+COPY requirements.txt .
 RUN pip3 install --no-cache-dir -r requirements.txt
-WORKDIR /usr/src
-SHELL ["/bin/bash", "-c"]
 
-ENTRYPOINT ["/bin/bash", "-c", "source /opt/ros/$ROS_DISTRO/setup.bash && source /root/wisevision_ws/install/setup.bash && exec gunicorn -k gthread -w 1 --threads 4 -b 0.0.0.0:5000 app.server.run:app"]
+# Copy application code
+COPY . .
 
-EXPOSE 5000
+# Set environment variables
+ENV PYTHONPATH=/app
+ENV PATH="/app:${PATH}"
+ENV ROS_DOMAIN_ID=0
+ENV RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+ENV DATA_BLACK_BOX_URL=http://wisevision-data-black-box:8000
+
+# Expose port
+EXPOSE 8000
+
+# Command to run the application
+CMD ["python3", "run.py"]

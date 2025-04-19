@@ -1,0 +1,36 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/opt/ros/humble/include/**",
+        "/home/adam/wisevision.proj/src/ros2_automatic_action_execution/src/automatic_action_execution/include/**",
+        "/home/adam/wisevision.proj/src/ros2_black_box/black_box/include/**",
+        "/home/adam/wisevision.proj/src/ros2_lora_bridge/custom_parsers/e5board/e5board_parser/include/**",
+        "/home/adam/wisevision.proj/src/ros2_lora_bridge/custom_parsers/lds02/lds02_parser/include/**",
+        "/home/adam/wisevision.proj/src/ros2_lora_bridge/custom_parsers/standard/standard_parser/include/**",
+        "/home/adam/wisevision.proj/src/ros2_lora_bridge/parser/include/**",
+        "/home/adam/wisevision.proj/src/ros2_lora_bridge/ros2_lora_bridge/include/**",
+        "/home/adam/wisevision.proj/src/ros2_notifications/notifications/include/**",
+        "/home/adam/wisevision.proj/src/wisevision_action_executor/wisevision_action_executor/include/**",
+        "/home/adam/wisevision.proj/src/wisevision_core/wisevision_parser/include/**",
+        "/home/adam/wisevision.proj/src/wisevision_core/wisevision_plugin_loader/include/**",
+        "/home/adam/wisevision.proj/src/wisevision_data_black_box/wisevision_data_black_box/include/**",
+        "/home/adam/wisevision.proj/src/wisevision_gps_tools/include/**",
+        "/home/adam/wisevision.proj/src/wisevision_lorawan_bridge/standard_parser/include/**",
+        "/home/adam/wisevision.proj/src/wisevision_lorawan_bridge/wisevision_lorawan_bridge/include/**",
+        "/home/adam/wisevision.proj/src/wisevision_notification_manager/wisevision_notification_manager/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++14"
+    }
+  ],
+  "version": 4
+}

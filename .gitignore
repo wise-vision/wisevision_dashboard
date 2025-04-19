@@ -54,3 +54,5 @@ app/client/yarn-error.log*
 
 # environment
 **.env
+app/next-client/node_modules/
+app/next-client/.next/cache/
