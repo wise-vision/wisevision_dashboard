@@ -22,15 +22,15 @@ Options:
 ```bash
 curl "http://localhost:5000/api/topics?default_filter=false"
 ```
-- filtr by message types:
+- filter by message types:
 ```bash
 curl "http://localhost:5000/api/topics?message_types=sensor_msgs/msg/Image&message_types=std_msgs/msg/Float32"
 ```
-- filtr by namespaces: message_namespaces
+- filter by namespaces: message_namespaces
 ```
 curl "http://localhost:5000/api/topics?message_namespaces=/test_ns_1"
 ```
-- Filtr by topic names contain:
+- Filter by topic names contain:
 ```bash
 curl "http://localhost:5000/api/topics?name_contains=temp"
 ```

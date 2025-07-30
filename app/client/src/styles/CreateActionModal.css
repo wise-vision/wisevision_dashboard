@@ -307,7 +307,7 @@
     box-shadow: none !important;
 }
 
-/* Hover efect */
+/* Hover effect */
 .icon:hover {
     background-color: white;
     transform: scale(1.1);

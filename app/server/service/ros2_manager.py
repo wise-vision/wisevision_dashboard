@@ -687,7 +687,7 @@ class ROS2Manager:
                 return types[0] if types else 'UnknownType'
         return None
     
-    # Get nested message fields  unique type
+    # Get unique field types from nested message fields 
     def get_message_field_types(self, message_structure):
         """
         Retrieves unique field types from a given ROS2 message structure.
