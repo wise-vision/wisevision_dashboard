@@ -95,6 +95,7 @@
 }
 
 .select-with-icon .icon {
+    flex-shrink: 0;
     margin-left: 8px;
     cursor: pointer;
     color: #555;

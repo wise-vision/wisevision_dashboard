@@ -8,7 +8,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-/* Modal - tło */
 .create-action-modal {
     position: fixed;
     top: 0;
@@ -248,14 +247,25 @@
 .select-with-icon {
     display: flex;
     align-items: center;
+
+    width: 100%;
 }
 
 .select-with-icon select,
 .select-with-icon input[type="text"] {
-    flex: 1;
+    flex-grow: 1;
+    min-width: 0;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-size: 16px;
+    box-sizing: border-box;
+    height: 40px;
+    background-color: #ffffff;
 }
 
 .select-with-icon .icon {
+    flex-shrink: 0;
     margin-left: 8px;
     cursor: pointer;
     color: #555;
@@ -264,7 +274,7 @@
     background: none;
     border: none;
     outline: none;
-    padding: 0;
+    margin-right: auto;
 }
 
 .select-with-icon .icon:hover {
@@ -275,4 +285,60 @@
 .select-with-icon .icon img {
     width: 16px;
     height: 16px;
+}
+
+
+.filter-icon {
+    font-size: 24px;
+}
+
+.icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background-color: white;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    border: none;
+    outline: none;
+    box-shadow: none !important;
+}
+
+/* Hover effect */
+.icon:hover {
+    background-color: white;
+    transform: scale(1.1);
+}
+
+.checkbox-group {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 25px;
+}
+
+.checkbox-group label {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    font-size: 16px !important;
+    cursor: pointer !important;
+    line-height: 1 !important;
+}
+
+
+.checkbox-group input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    accent-color: #3a86ff;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.checkbox-group input[type="checkbox"]:focus {
+    outline: none;
+    box-shadow: none;
 }
