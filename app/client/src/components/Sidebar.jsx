@@ -16,11 +16,13 @@ import '../styles/Sidebar.css';
 import CreateReportModal from './CreateReportModal';
 import CreateActionModal from './CreateActionModal';
 import DeleteActionModal from './DeleteActionModal'; // Import the new component
+import StorageSettingsModal from './DataStorage'
 
 const Sidebar = ({ setIsModalOpen, setIsDeleteModalOpen, openActionsModal }) => {
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [isActionModalOpen, setIsActionModalOpen] = useState(false);
     const [isDeleteActionModalOpen, setIsDeleteActionModalOpen] = useState(false); // State for delete action modal
+    const [isStorageSettingsModalOpen, setIsStorageOpen] = useState(false);
 
     return (
         <div className="menu">
@@ -61,6 +63,10 @@ const Sidebar = ({ setIsModalOpen, setIsDeleteModalOpen, openActionsModal }) => 
                     <img src={addIcon} alt="Delete action" className="icon"/>
                     <span>Delete action</span>
                 </button>
+                <button className="menu--item" onClick={() => setIsStorageOpen(true)}>
+                    <img src={addIcon} alt="Data storage" className="icon"/>
+                    <span>Data storage</span>
+                </button>
             </div>
 
             {/* Modal for creating a report */}
@@ -79,6 +85,12 @@ const Sidebar = ({ setIsModalOpen, setIsDeleteModalOpen, openActionsModal }) => 
             <DeleteActionModal
                 isOpen={isDeleteActionModalOpen}
                 onClose={() => setIsDeleteActionModalOpen(false)}
+            />
+
+            {/* Modal for setting storage */}
+            <StorageSettingsModal
+                isOpen={isStorageSettingsModalOpen}
+                onClose={() => setIsStorageOpen(false)}
             />
         </div>
     );

@@ -22,6 +22,9 @@ from rclpy.qos import QoSProfile
 from collections import OrderedDict
 import array
 import numpy as np
+import time
+from datetime import datetime, timezone
+from ..data_object.fulldatatime_codec import FullDateTimeCodec as FDT
 
 def ros_message_to_dict(msg):
     if not hasattr(msg, '__slots__'):
@@ -59,6 +62,52 @@ class ROS2Manager:
             print("Executor interrupted by KeyboardInterrupt.")
         finally:
             self.shutdown()
+
+    # def parse_iso8601_to_fulldatetime(self, value):
+    #     FullDateTime = get_message('lora_msgs/msg/FullDateTime')
+    #     if not value:
+    #         return FullDateTime(year=0, month=0, day=0, hour=0, minute=0, second=0, nanosecond=0)
+
+    #     if isinstance(value, FullDateTime):
+    #         return value
+
+    #     if isinstance(value, dict):
+    #         return FullDateTime(
+    #             year=int(value.get("year", 0)),
+    #             month=int(value.get("month", 0)),
+    #             day=int(value.get("day", 0)),
+    #             hour=int(value.get("hour", 0)),
+    #             minute=int(value.get("minute", 0)),
+    #             second=int(value.get("second", 0)),
+    #             nanosecond=int(value.get("nanosecond", 0)),
+    #         )
+
+    #     if isinstance(value, (int, float)):
+    #         dt = datetime.fromtimestamp(value, tz=timezone.utc)
+    #     elif isinstance(value, str):
+    #         s = value.strip()
+    #         if s.endswith("Z"):
+    #             s = s[:-1] + "+00:00"
+    #         try:
+    #             dt = datetime.fromisoformat(s)
+    #         except Exception as e:
+    #             raise ValueError(f"Invalid ISO-8601 time: {value}") from e
+    #         if dt.tzinfo is None:
+    #             dt = dt.replace(tzinfo=timezone.utc)
+    #         dt = dt.astimezone(timezone.utc)
+    #     else:
+    #         raise TypeError(f"Unsupported time type: {type(value)}")
+
+    #     return FullDateTime(
+    #         year=dt.year,
+    #         month=dt.month,
+    #         day=dt.day,
+    #         hour=dt.hour,
+    #         minute=dt.minute,
+    #         second=dt.second,
+    #         nanosec=dt.microsecond * 1000,
+    #     )
+
 
     def filter_topics(self, topics, default_filter=True, message_types=None, message_namespaces=None, name_contains=None):
         if message_types is None:
@@ -498,185 +547,280 @@ class ROS2Manager:
 
     # Blackbox services
 
-    def call_add_storage_service(self, params):
-        service_type = get_service('wisevision_msgs/srv/AddStorageToDataBase')
-        if not service_type:
-            raise ImportError("Service type not found for 'AddStorageToDataBase'")
-
-        client = self.node.create_client(service_type, '/add_storage_to_database')
-        while not client.wait_for_service(timeout_sec=1.0):
+    def _wait_service_or_timeout(self, node: Node, client, service_name: str, service_timeout: float, poll: float = 0.25):
+        deadline = time.monotonic() + service_timeout
+        while time.monotonic() < deadline:
+            if client.wait_for_service(timeout_sec=poll):
+                return
             if not rclpy.ok():
-                raise Exception("Interrupted while waiting for the service. ROS shutdown.")
+                raise RuntimeError("ROS shutdown podczas oczekiwania na serwis.")
+        raise TimeoutError(f"Service {service_name} not available (timed out after {service_timeout}s).")
+
+    def _wait_call_or_timeout(self, node: Node, future, service_name: str, call_timeout: float):
+        rclpy.spin_until_future_complete(node, future, timeout_sec=call_timeout)
+        if not future.done():
+            raise TimeoutError(f"No response from {service_name} within {call_timeout}s.")
+        response = future.result()
+        if response is None:
+            raise RuntimeError(f"Service {service_name} returned no response.")
+        return response
+
+
+
+    def call_start_record_topics_service(self, params, service_timeout: float = 5.0, call_timeout: float = 15.0):
+        """
+        params:
+        - bucket_name: str
+        - topics_names: List[str]
+        returns: bool (response.success)
+        """
+        service_name = '/start_record_topics'
+        service_type = get_service('wisevision_msgs/srv/InfluxStartRecordTopics')
+        if not service_type:
+            raise ImportError("Service type not found for 'InfluxStartRecordTopics'")
+
+        client = self.node.create_client(service_type, service_name)
+        self._wait_service_or_timeout(self.node, client, service_name, service_timeout)
 
         request = service_type.Request(
-            storage_name=params.get('storage_name'),
+            bucket_name=params.get('bucket_name', ''),
+            topics_names=params.get('topics_names', []),
         )
-
         future = client.call_async(request)
-        rclpy.spin_until_future_complete(self.node, future)
-        response = future.result()
+        response = self._wait_call_or_timeout(self.node, future, service_name, call_timeout)
+        print(response)
+        return bool(response.success)
 
-        return response.success if response else False
-    
-    def call_create_database_service(self, params):
-        service_type = get_service('wisevision_msgs/srv/CreateDataBase')
+
+    def call_create_bucket_service(self, params, service_timeout: float = 5.0, call_timeout: float = 15.0):
+        """
+        params:
+        - bucket_name: str
+        - retention_days: int
+        - description: str
+        returns: bool (response.success)
+        """
+        service_name = '/create_bucket'
+        service_type = get_service('wisevision_msgs/srv/InfluxCreateBucket')
         if not service_type:
-            raise ImportError("Service type not found for 'CreateDataBase'")
+            raise ImportError("Service type not found for 'InfluxCreateBucket'")
 
-        client = self.node.create_client(service_type, '/create_database')
-        while not client.wait_for_service(timeout_sec=1.0):
-            if not rclpy.ok():
-                raise Exception("Interrupted while waiting for the service. ROS shutdown.")
+        client = self.node.create_client(service_type, service_name)
+        self._wait_service_or_timeout(self.node, client, service_name, service_timeout)
 
         request = service_type.Request(
-            key_expr=params.get('key_expr'),
-            volume_id=params.get('volume_id'),
-            db_name=params.get('db_name'),
-            create_db=params.get('create_db')
+            bucket_name=params.get('bucket_name', ''),
+            retention_days=params.get('retention_days', 0),
+            description=params.get('description', ''),
         )
-
         future = client.call_async(request)
-        rclpy.spin_until_future_complete(self.node, future)
-        response = future.result()
+        response = self._wait_call_or_timeout(self.node, future, service_name, call_timeout)
+        return bool(response.success)
 
-        return response.success if response else False
 
-    def call_get_last_message_service(self, params):
-        
-        service_type = get_service('lora_msgs/srv/GetMessages')
+    def call_get_influx_buckets_service(self, service_timeout: float = 5.0, call_timeout: float = 10.0):
+        """
+        returns: full response (response.success, response.influx_buckets, response.error_message)
+        """
+        service_name = '/get_influx_buckets'
+        service_type = get_service('wisevision_msgs/srv/InfluxGetBuckets')
         if not service_type:
-            raise ImportError("Service type not found for 'GetMessages'")
+            raise ImportError("Service type not found for 'InfluxGetBuckets'")
 
-        client = self.node.create_client(service_type, '/get_messages')
-        while not client.wait_for_service(timeout_sec=1.0):
-            if not rclpy.ok():
-                raise Exception("Interrupted while waiting for the service. ROS shutdown.")
+        client = self.node.create_client(service_type, service_name)
+        self._wait_service_or_timeout(self.node, client, service_name, service_timeout)
 
         request = service_type.Request()
-        request.topic_name = params.get('topic_name')
-        print('topic_name:', request.topic_name)
-        request.message_type = params.get('message_type')
-        print('message_type:', request.message_type)
-        request.number_of_msgs = 1
-
         future = client.call_async(request)
-        print('params:')
-        rclpy.spin_until_future_complete(self.node, future)
-        response = future.result()
-        
-        if response:
-            return {
-                'int32_msgs': response.int32_msgs,
-                'micro_publisher_data': response.micro_publisher_data,
-                'timestamps': response.timestamps
-            }
-        else:
-            self.get_logger().error('Error while retrieving messages from the service.')
-            return None  
+        return self._wait_call_or_timeout(self.node, future, service_name, call_timeout)
 
-    def call_get_messages_service_any(self, params):
-        service_type = get_service('lora_msgs/srv/GetMessages')
+
+    def call_get_currently_recording_topics_service(self, service_timeout: float = 5.0, call_timeout: float = 10.0):
+        """
+        returns: full response (response.success, response.topics, response.bucket_names, response.record_ids, response.error_message)
+        """
+        service_name = '/get_currently_recording_topics'
+        service_type = get_service('wisevision_msgs/srv/InfluxGetCurrentlyRecordingTopics')
         if not service_type:
-            raise ImportError("Service type not found for 'GetMessages'")
-        client = self.node.create_client(service_type, '/get_messages')
-        while not client.wait_for_service(timeout_sec=1.0):
-            if not rclpy.ok():
-                raise Exception("Interrupted while waiting for the service. ROS shutdown.")
+            raise ImportError("Service type not found for 'InfluxGetCurrentlyRecordingTopics'")
+
+        client = self.node.create_client(service_type, service_name)
+        self._wait_service_or_timeout(self.node, client, service_name, service_timeout)
 
         request = service_type.Request()
-        topic_name = params.get('topic_name')
-        request.topic_name = topic_name
-        request.message_type = 'any'
-        request.number_of_msgs = params.get('number_of_msgs', 0)
-
-        def parse_iso8601_to_fulldatetime(iso8601_str):
-            FullDateTime = get_message('lora_msgs/msg/FullDateTime')
-
-            dt = parser.isoparse(iso8601_str)
-
-            full_datetime = FullDateTime()
-            full_datetime.year = dt.year
-            full_datetime.month = dt.month
-            full_datetime.day = dt.day
-            full_datetime.hour = dt.hour
-            full_datetime.minute = dt.minute
-            full_datetime.second = dt.second
-            full_datetime.nanosecond = dt.microsecond * 1000 
-
-            return full_datetime
-
-        if 'time_start' in params:
-            request.time_start = parse_iso8601_to_fulldatetime(params['time_start'])
-        if 'time_end' in params:
-            request.time_end = parse_iso8601_to_fulldatetime(params['time_end'])
-
-
         future = client.call_async(request)
-        rclpy.spin_until_future_complete(self.node, future)
-        if future.done():
-            print("Service call completed")
-        else:
-            print("Service call did not complete within the timeout")
-        response = future.result()
-
-        if response:
-            try:
-                MessageType = get_message(params.get('message_type'))
-                messages = []
-                data = response.data
-                offset = 0
-
-                while offset < len(data):
-                    message_length = int.from_bytes(data[offset:offset + 4], byteorder='big')
-                    offset += 4
-
-                    message_data = bytes(data[offset:offset + message_length])
-                    offset += message_length
-
-                    message = deserialize_message(message_data, MessageType())
-                    messages.append(message)
+        return self._wait_call_or_timeout(self.node, future, service_name, call_timeout)
 
 
-                def serialize_ros_message(msg):
-                    result = {}
-                    for field_name, field_type in msg.get_fields_and_field_types().items():
-                        value = getattr(msg, field_name)
+    def call_stop_record_topics_service(self, params, service_timeout: float = 5.0, call_timeout: float = 15.0):
+        """
+        params:
+        - topics_names: List[str]
+        returns: bool (response.success)
+        """
+        service_name = '/stop_record_topics'
+        service_type = get_service('wisevision_msgs/srv/InfluxStopRecordTopics')
+        if not service_type:
+            raise ImportError("Service type not found for 'InfluxStopRecordTopics'")
 
-                        if hasattr(value, 'get_fields_and_field_types'):
-                            result[field_name] = serialize_ros_message(value)
-                        elif isinstance(value, list):
-                            serialized_list = []
-                            for item in value:
-                                if hasattr(item, 'get_fields_and_field_types'):
-                                    serialized_list.append(serialize_ros_message(item))
-                                elif isinstance(item, (array.array, tuple)):
-                                    serialized_list.append(list(item))
-                                else:
-                                    serialized_list.append(item)
-                            result[field_name] = serialized_list
-                        elif isinstance(value, (array.array, tuple)):
-                            result[field_name] = list(value)
-                        elif isinstance(value, np.ndarray):
-                            result[field_name] = value.tolist()
-                        elif isinstance(value, (bytes, bytearray)):
-                            result[field_name] = value.decode('utf-8', errors='ignore')
-                        elif isinstance(value, (int, float, str, bool)):
-                            result[field_name] = value
-                        else:
-                            print(f"Unsupported type for JSON serialization: {field_name} of type {type(value)}")
-                            result[field_name] = str(value)
+        client = self.node.create_client(service_type, service_name)
+        self._wait_service_or_timeout(self.node, client, service_name, service_timeout)
 
-                    return result
-                serialized_response = {
-                    'timestamps': [serialize_ros_message(timestamp) for timestamp in response.timestamps],
-                    'messages': [serialize_ros_message(msg) for msg in messages]
-                }
+        request = service_type.Request(
+            topics_names=params.get('topics_names', []),
+        )
+        future = client.call_async(request)
+        response = self._wait_call_or_timeout(self.node, future, service_name, call_timeout)
+        return bool(response.success)
 
-                return serialized_response
-            except Exception as e:
-                raise Exception(f"Message deserialization error:” {e}")
-        else:
-            return None
+
+    def call_get_recorded_bags_by_topic_service(self, params, service_timeout: float = 5.0, call_timeout: float = 10.0):
+        service_name = '/get_recorded_bags_by_topic'
+        service_type = get_service('wisevision_msgs/srv/InfluxGetRecordedBagsByTopic')
+        if not service_type:
+            raise ImportError("Service type not found for 'InfluxGetRecordedBagsByTopic'")
+
+        client = self.node.create_client(service_type, service_name)
+        self._wait_service_or_timeout(self.node, client, service_name, service_timeout)
+
+        request = service_type.Request(
+            topic_name=params.get('topic_name', ''),
+        )
+        future = client.call_async(request)
+        response = self._wait_call_or_timeout(self.node, future, service_name, call_timeout)
+
+        # --- KONWERSJE ---
+        # record_ids może zawierać FullDateTime – zamień tylko takie elementy
+        record_ids_raw = list(getattr(response, "record_ids", []))
+        record_ids = [
+            FDT.to_iso8601(x) if (hasattr(x, "year") and hasattr(x, "month") and (hasattr(x, "nanosecond") or hasattr(x, "nanosec")))
+            else x
+        for x in record_ids_raw]
+
+        end_time_stamps = [
+            FDT.to_iso8601(t) for t in getattr(response, "end_time_stamps", [])
+        ]
+
+        result = {
+            "success": bool(response.success),
+            "topic_name": getattr(response, "topic_name", ""),
+            "bucket_names": list(getattr(response, "bucket_names", [])),
+            "record_ids": record_ids,
+            "end_time_stamps": end_time_stamps,
+            "error": getattr(response, "error", ""),
+        }
+        return result
+
+
+    def call_get_messages_service(self, params, service_timeout: float = 5.0, call_timeout: float = 20.0):
+        """
+        params:
+        - topic_name: str
+        - bucket_name: str (optional)
+        - time_start: <FullDateTime> (optional)
+        - time_end:   <FullDateTime> (optional)
+        - number_of_msgs: int (optional)
+        returns: full response (response.success, response.messages, response.timestamps, response.message_type, response.error_message)
+        """
+        service_name = '/get_messages'
+        service_type = get_service('wisevision_msgs/srv/InfluxGetMessages')
+        if not service_type:
+            raise ImportError("Service type not found for 'InfluxGetMessages'")
+
+        client = self.node.create_client(service_type, service_name)
+        self._wait_service_or_timeout(self.node, client, service_name, service_timeout)
+
+        request = service_type.Request(
+            topic_name=params.get('topic_name', ''),
+            bucket_name=params.get('bucket_name', ''),
+            time_start=FDT.parse_iso8601(params.get('time_start')),
+            time_end=FDT.parse_iso8601(params.get('time_end')),
+            number_of_msgs=params.get('number_of_msgs', 0),
+        )
+        future = client.call_async(request)
+        return self._wait_call_or_timeout(self.node, future, service_name, call_timeout)
+
+
+    def call_get_recorded_topics_service(self, service_timeout: float = 5.0, call_timeout: float = 10.0):
+        """
+        returns: full response (response.success, response.topics, response.bucket_names, response.error_message)
+        """
+        service_name = '/get_recorded_topics'
+        service_type = get_service('wisevision_msgs/srv/InfluxGetRecordedTopicsWithBucketsName')
+        if not service_type:
+            raise ImportError("Service type not found for 'InfluxGetRecordedTopicsWithBucketsName'")
+
+        client = self.node.create_client(service_type, service_name)
+        self._wait_service_or_timeout(self.node, client, service_name, service_timeout)
+
+        request = service_type.Request()
+        future = client.call_async(request)
+        return self._wait_call_or_timeout(self.node, future, service_name, call_timeout)
+
+
+    def call_play_recordings_service(self, params, service_timeout: float = 5.0, call_timeout: float = 10.0):
+        """
+        params:
+        - bucket_name: str
+        - topic_names: List[str]
+        - record_ids:  List[str]
+        returns: bool (response.success)
+        """
+        service_name = '/play_recordings'
+        service_type = get_service('wisevision_msgs/srv/InfluxPlayRecordings')
+        if not service_type:
+            raise ImportError("Service type not found for 'InfluxPlayRecordings'")
+
+        client = self.node.create_client(service_type, service_name)
+        self._wait_service_or_timeout(self.node, client, service_name, service_timeout)
+
+        request = service_type.Request(
+            bucket_name=params.get('bucket_name', ''),
+            topic_names=params.get('topic_names', []),
+            record_ids=params.get('record_ids', []),
+        )
+        future = client.call_async(request)
+        response = self._wait_call_or_timeout(self.node, future, service_name, call_timeout)
+        return bool(response.success)
+
+
+    def call_stop_playing_topics_service(self, params, service_timeout: float = 5.0, call_timeout: float = 15.0):
+        """
+        params:
+        - topics_names: List[str]
+        returns: bool (response.success)
+        """
+        service_name = '/stop_playing_topics'
+        service_type = get_service('wisevision_msgs/srv/InfluxStopPlayingTopics')
+        if not service_type:
+            raise ImportError("Service type not found for 'InfluxStopPlayingTopics'")
+
+        client = self.node.create_client(service_type, service_name)
+        self._wait_service_or_timeout(self.node, client, service_name, service_timeout)
+
+        request = service_type.Request(
+            topics_names=params.get('topics_names', []),
+        )
+        future = client.call_async(request)
+        response = self._wait_call_or_timeout(self.node, future, service_name, call_timeout)
+        return bool(response.success)
+
+
+    def call_get_currently_playing_topics_service(self, service_timeout: float = 5.0, call_timeout: float = 10.0):
+        """
+        returns: full response (response.success, response.topics, response.bucket_names, response.record_ids, response.error_message)
+        """
+        service_name = '/get_currently_playing_topics'
+        service_type = get_service('wisevision_msgs/srv/InfluxGetCurrentlyPlayingTopics')
+        if not service_type:
+            raise ImportError("Service type not found for 'InfluxGetCurrentlyPlayingTopics'")
+
+        client = self.node.create_client(service_type, service_name)
+        self._wait_service_or_timeout(self.node, client, service_name, service_timeout)
+
+        request = service_type.Request()
+        future = client.call_async(request)
+        return self._wait_call_or_timeout(self.node, future, service_name, call_timeout)
     
     # END OF: Blackbox services
 

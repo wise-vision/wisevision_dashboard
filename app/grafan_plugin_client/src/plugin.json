@@ -1,0 +1,60 @@
+{
+  "$schema": "https://raw.githubusercontent.com/grafana/grafana/master/docs/sources/developers/plugins/plugin.schema.json",
+  "type": "app",
+  "name": "Wise Os App",
+  "id": "wisevision-wiseos-app",
+  "info": {
+    "keywords": ["app"],
+    "description": "Wise os controller",
+    "author": {
+      "name": "Wise vision"
+    },
+    "logos": {
+      "small": "img/logo.svg",
+      "large": "img/logo.svg"
+    },
+    "screenshots": [],
+    "version": "%VERSION%",
+    "updated": "%TODAY%"
+  },
+  "includes": [
+    {
+      "type": "page",
+      "name": "Page One",
+      "path": "/a/%PLUGIN_ID%/one",
+      "role": "Admin",
+      "addToNav": true,
+      "defaultNav": true
+    },
+    {
+      "type": "page",
+      "name": "AI Agent",
+      "path": "/a/%PLUGIN_ID%/ai-agent",
+      "role": "Admin", 
+      "addToNav": true,
+      "defaultNav": false
+    },
+    {
+      "type": "page",
+      "icon": "cog",
+      "name": "Configuration",
+      "path": "/plugins/%PLUGIN_ID%",
+      "role": "Admin",
+      "addToNav": true
+    }
+  ],
+  "routes": [
+    {
+      "path": "backend/*",
+      "url": "{{ .JsonData.apiUrl }}"
+    },
+    {
+      "path": "agent_backend/*",
+      "url":"{{ .JsonData.apiUrlAgent }}"
+    }
+  ],
+  "dependencies": {
+    "grafanaDependency": ">=10.0.3",
+    "plugins": []
+  }
+}

@@ -1,0 +1,65 @@
+[build-system]
+requires = ["hatchling>=1.25.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mcp-ai-bridge"
+version = "0.1.0"
+description = "MCP Agent with bridge"
+requires-python = ">=3.11,<3.13"
+license = { text = "MIT" }
+
+dependencies = [
+  "typing-extensions>=4.10",
+  "orjson>=3.10,<4.0",
+  "fastapi>=0.115,<1.0",
+  "uvicorn[standard]>=0.30,<1.0",
+  "httpx>=0.27,<1.0",
+  "pydantic>=2.7,<3.0",
+  "pydantic-settings>=2.2,<3.0",
+  "sse-starlette>=2.1,<3.0",
+  "langchain-mcp-adapters==0.0.8",
+  "langchain-core>=0.3.36",
+  "langchain-openai>=0.2.8",
+  "langgraph>=0.2.39",
+  "openai>=1.51.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "ruff>=0.6.9,<1.0",
+  "mypy>=1.11,<2.0",
+  "pytest>=8.3,<9.0",
+  "pytest-asyncio>=0.23,<1.0",
+  "anyio>=4.4,<5.0",
+]
+agent = []
+bridge = []
+
+[project.scripts]
+mcp-bridge = "bridge.main:main"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+lint.select = ["E","F","I","N","UP","B","SIM","S","RET","RUF"]
+lint.ignore = [
+  "S311",
+]
+format.preview = true
+
+[tool.mypy]
+python_version = "3.11"
+strict = false
+warn_return_any = true
+warn_unused_ignores = true
+ignore_missing_imports = true
+mypy_path = "src"
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agent", "src/bridge"]

@@ -1,0 +1,8 @@
+apiVersion: 1
+
+apps:
+  - type: 'wisevision-wiseos-app'
+    disabled: false
+    jsonData:
+      apiUrl: 'http://localhost:5000'
+      apiUrlAgent: 'http://localhost:8089'

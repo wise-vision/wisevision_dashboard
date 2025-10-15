@@ -13,7 +13,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Line } from 'react-chartjs-2';
 import DatePicker from 'react-datepicker';
-import axios from 'axios';
+import { InfluxDB } from '@influxdata/influxdb-client-browser';
 import { FaEllipsisV } from 'react-icons/fa';
 import 'chart.js/auto';
 import 'react-datepicker/dist/react-datepicker.css';
@@ -23,7 +23,7 @@ import '../styles/ModalAnimations.css';
 const kLineColor = 'rgba(36,198,221,0.96)';
 const kBorderWidth = 4;
 
-const StyledLineChart = ({ data: { label, selectedTopic, unit, selectedPath } }) => {
+const StyledLineChart = ({ data: { label, selectedBucket, selectedTopic, selectedField, unit } }) => {
     const [data, setData] = useState([]);
     const [filteredData, setFilteredData] = useState([]);
     const [displayedValue, setDisplayedValue] = useState(`0 ${unit}`);
@@ -43,90 +43,71 @@ const StyledLineChart = ({ data: { label, selectedTopic, unit, selectedPath } })
 
     const hasFetchedData = useRef(false);
 
-    const traverseForNumericValues = (obj, path) => {
-        if (!obj || typeof obj !== 'object') {
-            console.error('Invalid object provided:', obj);
-            return undefined;
-        }
+    // Initialize InfluxDB client
+    const influxDB = new InfluxDB({
+        url: process.env.REACT_APP_INFLUXDB_URL,
+        token: process.env.REACT_APP_INFLUXDB_TOKEN,
+    });
 
-        const parts = path.split('.');
-        let currentObj = obj;
 
-        for (let part of parts) {
-            if (currentObj[part] !== undefined) {
-                currentObj = currentObj[part];
-            } else {
-                console.error(`Path "${part}" not found in`, currentObj);
-                return undefined;
-            }
-        }
-
-        if (typeof currentObj === 'number') {
-            return currentObj;
-        } else {
-            console.error(`Value at path "${path}" is not a number:`, currentObj);
-            return undefined;
-        }
-    };
 
     const fetchData = useCallback(async () => {
         if (hasFetchedData.current) return;
 
-        const controller = new AbortController();
-        const signal = controller.signal;
-
         try {
-            const encodedTopic = encodeURIComponent(selectedTopic.name);
-            const encodedType = encodeURIComponent(selectedTopic.type);
-            const response = await axios.get(
-                `${process.env.REACT_APP_API_BASE_URL}/api/topic_echo_data_base_any_last_week/${encodedTopic}?type=${encodedType}`,
-                { signal }
-            );
+            setLoading(true);
+            const queryApi = influxDB.getQueryApi(process.env.REACT_APP_INFLUXDB_USERNAME);
+            
+            // Query last week of data from InfluxDB
+            const fluxQuery = `
+                from(bucket: "${selectedBucket}")
+                |> range(start: -7d)
+                |> filter(fn: (r) => r._measurement == "${selectedTopic}")
+                |> filter(fn: (r) => r._field == "${selectedField}")
+                |> sort(columns: ["_time"], desc: false)
+            `;
 
-            const { messages, timestamps } = response.data;
+            const simplifiedData = [];
+            
+            await queryApi.queryRows(fluxQuery, {
+                next(row, tableMeta) {
+                    const o = tableMeta.toObject(row);
+                    if (o._value !== undefined && o._time) {
+                        const date = new Date(o._time);
+                        const value = parseFloat(o._value);
+                        
+                        if (!isNaN(value)) {
+                            simplifiedData.push({ value, date });
+                        }
+                    }
+                },
+                error(error) {
+                    console.error('Error in InfluxDB query:', error);
+                    setLoading(false);
+                },
+                complete() {
+                    // Remove duplicates and sort by date
+                    const uniqueData = simplifiedData.filter((item, index, self) =>
+                        index === self.findIndex((t) => t.date.getTime() === item.date.getTime())
+                    );
 
-            const simplifiedData = messages.map((message, index) => {
+                    uniqueData.sort((a, b) => a.date - b.date);
 
-                const value = traverseForNumericValues(message, selectedPath);
-                const timestamp = timestamps[index];
-                const date = timestamp
-                    ? new Date(
-                        timestamp.year,
-                        timestamp.month - 1,
-                        timestamp.day,
-                        timestamp.hour,
-                        timestamp.minute,
-                        timestamp.second
-                    )
-                    : null;
+                    setData(uniqueData);
+                    setFilteredData(uniqueData);
+                    if (viewportStartIndex === 0) {
+                        setViewportStartIndex(Math.max(uniqueData.length - kMaxDataPoints, 0));
+                    }
+                    setLoading(false);
+                    hasFetchedData.current = true;
+                }
+            });
 
-                return { value, date };
-            }).filter(item => item.value !== undefined && item.date !== null);
-
-            const uniqueData = simplifiedData.filter((item, index, self) =>
-                index === self.findIndex((t) => t.date.getTime() === item.date.getTime())
-            );
-
-            uniqueData.sort((a, b) => a.date - b.date);
-
-            setData(uniqueData);
-            setFilteredData(uniqueData);
-            if (viewportStartIndex === 0) {
-                setViewportStartIndex(Math.max(uniqueData.length - kMaxDataPoints, 0));
-            }
-            setLoading(false);
-            hasFetchedData.current = true;
         } catch (error) {
-            if (axios.isCancel(error)) {
-                console.log('Request canceled', error.message);
-            } else {
-                console.error('Error fetching data', error);
-            }
+            console.error('Error fetching data from InfluxDB:', error);
             setLoading(false);
         }
-
-        return () => controller.abort();
-    }, [selectedTopic, selectedPath, kMaxDataPoints, viewportStartIndex]);
+    }, [selectedBucket, selectedTopic, selectedField, kMaxDataPoints, viewportStartIndex, influxDB]);
 
     useEffect(() => {
         fetchData();
@@ -148,47 +129,63 @@ const StyledLineChart = ({ data: { label, selectedTopic, unit, selectedPath } })
         }
         const intervalId = setInterval(async () => {
             try {
-                console.log('Fetching live data...');
-                const encodedTopic = encodeURIComponent(selectedTopic.name);
-                const encodedType = encodeURIComponent(selectedTopic.type);
-                const response = await axios.get(
-                    `${process.env.REACT_APP_API_BASE_URL}/api/topic_echo/${encodedTopic}?type=${encodedType}`
-                );
+                console.log('Fetching live data from InfluxDB...');
+                const queryApi = influxDB.getQueryApi(process.env.REACT_APP_INFLUXDB_USERNAME);
+                
+                // Query last 1 minute of data to get the most recent value
+                const fluxQuery = `
+                    from(bucket: "${selectedBucket}")
+                    |> range(start: -1m)
+                    |> filter(fn: (r) => r._measurement == "${selectedTopic}")
+                    |> filter(fn: (r) => r._field == "${selectedField}")
+                    |> sort(columns: ["_time"], desc: true)
+                    |> limit(n: 1)
+                `;
 
-                console.log('Live data response:', response.data);
+                let latestValue = null;
+                let latestTime = null;
 
-                let { message } = response.data;
+                await queryApi.queryRows(fluxQuery, {
+                    next(row, tableMeta) {
+                        const o = tableMeta.toObject(row);
+                        if (o._value !== undefined && o._time) {
+                            latestValue = parseFloat(o._value);
+                            latestTime = new Date(o._time);
+                        }
+                    },
+                    error(error) {
+                        console.error('Error in live InfluxDB query:', error);
+                    },
+                    complete() {
+                        if (latestValue !== null && latestTime) {
+                            console.log(`Live data - Value: ${latestValue}, Time: ${latestTime}`);
+                            
+                            const newDataPoint = { value: latestValue, date: latestTime };
 
+                            setData(prevData => {
+                                // Check if this is actually a new data point
+                                const lastPoint = prevData[prevData.length - 1];
+                                if (!lastPoint || lastPoint.date.getTime() !== latestTime.getTime()) {
+                                    const updatedData = [...prevData, newDataPoint];
+                                    setFilteredData(updatedData);
+                                    
+                                    // Auto-scroll to latest data when live updates are active
+                                    setViewportStartIndex(Math.max(updatedData.length - kMaxDataPoints, 0));
+                                    
+                                    return updatedData;
+                                }
+                                return prevData;
+                            });
+                            setDisplayedValue(`${latestValue} ${unit}`);
+                        } else {
+                            console.warn('No live data available');
+                            setDisplayedValue(`No data ${unit}`);
+                        }
+                    }
+                });
 
-                console.log('Message received:', message);
-
-                // If message is empty, stop processing
-                if (!message || Object.keys(message).length === 0) {
-                    console.warn('Received empty message:', message);
-                    setDisplayedValue(`No data ${unit}`);
-                    return;
-                }
-
-                const value = traverseForNumericValues(message, selectedPath);
-                console.log(`Extracted value: ${value}`);
-
-                if (value !== undefined) {
-                    const date = new Date();
-                    const newDataPoint = { value, date };
-
-                    setData(prevData => {
-                        const updatedData = [...prevData, newDataPoint];
-                        console.log('Updated data:', updatedData);
-                        setFilteredData(updatedData);
-                        return updatedData;
-                    });
-                    setDisplayedValue(`${value} ${unit}`);
-                } else {
-                    console.warn(`Path "${selectedPath}" not found in message:`, message);
-                    setDisplayedValue(`No data ${unit}`);
-                }
             } catch (error) {
-                console.error('Error fetching live data', error);
+                console.error('Error fetching live data from InfluxDB:', error);
             }
         }, refreshInterval);
         setLiveDataInterval(intervalId);

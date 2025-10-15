@@ -8,8 +8,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CiFilter } from "react-icons/ci";
+import { InfluxDB } from '@influxdata/influxdb-client-browser';
 import FilterTopicsModal from './FilterTopicsModal';
 import '../styles/ChartModal.css';
 
@@ -19,15 +20,18 @@ const ChartModal = ({ onClose, onAddChart }) => {
     const [chartType, setChartType] = useState('');
     const [chartLabel, setChartLabel] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
+    
+    // InfluxDB related state
+    const [buckets, setBuckets] = useState([]);
+    const [selectedBucket, setSelectedBucket] = useState('');
     const [topics, setTopics] = useState([]);
-    const [selectedTopic, setSelectedTopic] = useState({
-        name: '',
-        type: '',
-    });
+    const [selectedTopic, setSelectedTopic] = useState('');
+    const [fields, setFields] = useState([]);
+    const [selectedField, setSelectedField] = useState('');
+    
     const [selectedUnit, setSelectedUnit] = useState('');
-    const [nestedPaths, setNestedPaths] = useState([]);
-    const [selectedPath, setSelectedPath] = useState('');
     const [step, setStep] = useState(1);
+    const [loading, setLoading] = useState(false);
 
     // State variables to track filter modal
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
@@ -42,86 +46,164 @@ const ChartModal = ({ onClose, onAddChart }) => {
     };
 
     // State variables to track manual input mode
+    const [selectedBucketManualInput, setSelectedBucketManualInput] = useState(false);
     const [selectedTopicManualInput] = useState(false);
     const [selectedUnitManualInput, setSelectedUnitManualInput] = useState(false);
-    const [selectedPathManualInput, setSelectedPathManualInput] = useState(false);
+    const [selectedFieldManualInput, setSelectedFieldManualInput] = useState(false);
 
-    // Fetch topics from the API
-    useEffect(() => {
-        const fetchTopics = async () => {
-            try {
-                const queryParams = new URLSearchParams();
-                    if (selectedFilters.name) {
-                        queryParams.append("name_contains", selectedFilters.name);
-                    }
-                    if (selectedFilters.messageTypes.length > 0) {
-                        selectedFilters.messageTypes.forEach(type => queryParams.append("message_types", type));
-                    }
-                    if (selectedFilters.namespaces.length > 0) {
-                        selectedFilters.namespaces.forEach(ns => queryParams.append("message_namespaces", ns));
-                    }
-                    const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/topics?${queryParams.toString()}`);
-                const result = await response.json();
-                setTopics(result);
-                if (result[0] && chartType !== 'gps') {
-                    setSelectedTopic({
-                        name: result[0].name,
-                        type: result[0].type,
-                    });
-                }
-            } catch (error) {
-                console.error('Error fetching topics:', error);
-            }
-        };
-        fetchTopics();
-    }, [chartType, selectedFilters]);
+    // Initialize InfluxDB client
+    const influxDB = new InfluxDB({
+        url: process.env.REACT_APP_INFLUXDB_URL,
+        token: process.env.REACT_APP_INFLUXDB_TOKEN,
+    });
 
-    const extractFields = useCallback((structure, parent = '') => {
-        let fields = [];
-        for (let key in structure) {
-            const value = structure[key];
-            const fullPath = parent ? `${parent}.${key}` : key;
-    
-            if (Array.isArray(value)) {
-                if (value.length > 0 && typeof value[0] === 'object') {
-                    fields = fields.concat(extractFields(value[0], fullPath + '[]'));
+    // Fetch buckets with wisevision_influxdb_ros2 label using Flask API
+    const fetchBuckets = async () => {
+        try {
+            setLoading(true);
+            const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/get_influx_buckets`);
+            const result = await response.json();
+            
+            if (result.success && result.influx_buckets) {
+                // Convert bucket names to the expected format
+                const bucketsList = result.influx_buckets.map(bucketName => ({
+                    name: bucketName,
+                    id: bucketName
+                }));
+                
+                setBuckets(bucketsList);
+                
+                if (bucketsList.length > 0) {
+                    setSelectedBucket(bucketsList[0].name);
                 } else {
-                    fields.push(fullPath + '[]');
+                    setErrorMessage('No buckets found with wisevision_influxdb_ros2 label.');
                 }
-            } else if (typeof value === 'object' && value !== null) {
-                fields = fields.concat(extractFields(value, fullPath));
             } else {
-                fields.push(fullPath);
+                console.error('Failed to fetch buckets from Flask API:', result.error_message);
+                setErrorMessage(result.error_message || 'Failed to fetch buckets from server.');
+                
+                // Fallback to manual input
+                setBuckets([]);
             }
+        } catch (error) {
+            console.error('Error fetching buckets from Flask API:', error);
+            setErrorMessage('Cannot connect to Flask server. Please check your server configuration.');
+            
+            // Fallback to manual input
+            setBuckets([]);
+        } finally {
+            setLoading(false);
         }
-        return fields;
-    }, []);
+    };
 
-    // Fetch message structure and available numeric paths
-    useEffect(() => {
-        if (step === 2 && selectedTopic.type && chartType !== 'gps') {
-            const fetchMessageStructure = async () => {
-                try {
-                    const encodedType = encodeURIComponent(selectedTopic.type);
-                    const response = await fetch(
-                        `${process.env.REACT_APP_API_BASE_URL}/api/message_structure/${encodedType}`
-                    );
-                    const result = await response.json();
-
-                    const paths = extractFields(result);
-                    setNestedPaths(paths);
-
-                    if (paths.length > 0) {
-                        setSelectedPath(paths[0]);
+    // Fetch topics (measurements) from selected bucket
+    const fetchTopics = async (bucketName) => {
+        if (!bucketName) return;
+        
+        try {
+            setLoading(true);
+            const queryApi = influxDB.getQueryApi(process.env.REACT_APP_INFLUXDB_USERNAME);
+            
+            const fluxQuery = `
+                import "influxdata/influxdb/schema"
+                schema.measurements(bucket: "${bucketName}")
+            `;
+            
+            const topicsList = [];
+            await queryApi.queryRows(fluxQuery, {
+                next(row, tableMeta) {
+                    const o = tableMeta.toObject(row);
+                    if (o._value && !topicsList.includes(o._value)) {
+                        topicsList.push(o._value);
                     }
-                } catch (error) {
-                    console.error('Error fetching message structure:', error);
+                },
+                error(error) {
+                    console.error('Error in flux query:', error);
+                    setErrorMessage('Failed to fetch topics from InfluxDB');
+                },
+                complete() {
+                    setTopics(topicsList);
+                    if (topicsList.length > 0 && chartType !== 'gps') {
+                        setSelectedTopic(topicsList[0]);
+                    }
                 }
-            };
-
-            fetchMessageStructure();
+            });
+        } catch (error) {
+            console.error('Error fetching topics:', error);
+            setErrorMessage('Failed to fetch topics from InfluxDB');
+        } finally {
+            setLoading(false);
         }
-    }, [step, selectedTopic, chartType, extractFields]);
+    };
+
+    // Fetch fields from selected topic
+    const fetchFields = async (bucketName, topicName) => {
+        if (!bucketName || !topicName) return;
+        
+        try {
+            setLoading(true);
+            const queryApi = influxDB.getQueryApi(process.env.REACT_APP_INFLUXDB_USERNAME);
+            
+            const fluxQuery = `
+                import "influxdata/influxdb/schema"
+                schema.fieldKeys(
+                    bucket: "${bucketName}",
+                    predicate: (r) => r._measurement == "${topicName}",
+                    start: -7d
+                )
+            `;
+            
+            const fieldsList = [];
+            const excludedFields = ['payload_b64', 'record_id', 'status', 'stop_record_id'];
+            
+            await queryApi.queryRows(fluxQuery, {
+                next(row, tableMeta) {
+                    const o = tableMeta.toObject(row);
+                    if (o._value && !fieldsList.includes(o._value) && !excludedFields.includes(o._value)) {
+                        fieldsList.push(o._value);
+                    }
+                },
+                error(error) {
+                    console.error('Error in flux query:', error);
+                    setErrorMessage('Failed to fetch fields from InfluxDB');
+                },
+                complete() {
+                    setFields(fieldsList);
+                    if (fieldsList.length > 0) {
+                        setSelectedField(fieldsList[0]);
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error fetching fields:', error);
+            setErrorMessage('Failed to fetch fields from InfluxDB');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Fetch buckets on component mount
+    useEffect(() => {
+        if (chartType && chartType !== 'gps') {
+            fetchBuckets();
+        }
+    }, [chartType]);
+
+    // Fetch topics when bucket changes
+    useEffect(() => {
+        if (selectedBucket) {
+            fetchTopics(selectedBucket);
+        }
+    }, [selectedBucket]);
+
+    // Fetch fields when topic changes
+    useEffect(() => {
+        if (selectedBucket && selectedTopic) {
+            fetchFields(selectedBucket, selectedTopic);
+        }
+    }, [selectedBucket, selectedTopic]);
+
+
 
     const handleChartTypeSelection = (type) => {
         setChartType(type);
@@ -130,11 +212,12 @@ const ChartModal = ({ onClose, onAddChart }) => {
         // Reset fields when chart type changes
         setChartLabel('');
         setSelectedUnit('');
-        setSelectedTopic({
-            name: '',
-            type: '',
-        });
-        setSelectedPath('');
+        setSelectedBucket('');
+        setSelectedTopic('');
+        setSelectedField('');
+        setBuckets([]);
+        setTopics([]);
+        setFields([]);
     };
 
     const handleCreate = () => {
@@ -165,8 +248,8 @@ const ChartModal = ({ onClose, onAddChart }) => {
                 return;
             }
 
-            if (!selectedTopic.name || !selectedTopic.type || !selectedPath) {
-                setErrorMessage('Please select a topic and path.');
+            if (!selectedBucket || !selectedTopic || !selectedField) {
+                setErrorMessage('Please select a bucket, topic and field.');
                 return;
             }
 
@@ -174,8 +257,9 @@ const ChartModal = ({ onClose, onAddChart }) => {
                 id: Date.now(),
                 type: chartType,
                 label: chartLabel,
+                selectedBucket: selectedBucket,
                 selectedTopic: selectedTopic,
-                selectedPath: selectedPath,
+                selectedField: selectedField,
                 unit: selectedUnit,
             };
 
@@ -190,11 +274,12 @@ const ChartModal = ({ onClose, onAddChart }) => {
             setChartType('');
             setChartLabel('');
             setSelectedUnit('');
-            setSelectedTopic({
-                name: '',
-                type: '',
-            });
-            setSelectedPath('');
+            setSelectedBucket('');
+            setSelectedTopic('');
+            setSelectedField('');
+            setBuckets([]);
+            setTopics([]);
+            setFields([]);
             setErrorMessage('');
         }
     };
@@ -274,41 +359,67 @@ const ChartModal = ({ onClose, onAddChart }) => {
                         {chartType !== 'gps' && (
                             <>
                                 <div className="form-group">
+                                    <label htmlFor="bucket">Select Bucket</label>
+                                    <div className="select-with-icon">
+                                        {selectedBucketManualInput ? (
+                                            <input
+                                                id="bucketInput"
+                                                type="text"
+                                                value={selectedBucket}
+                                                onChange={(e) => setSelectedBucket(e.target.value)}
+                                                placeholder="Enter bucket name"
+                                            />
+                                        ) : (
+                                            <select
+                                                id="bucket"
+                                                value={selectedBucket}
+                                                onChange={(e) => setSelectedBucket(e.target.value)}
+                                                disabled={loading}
+                                            >
+                                                <option value="" disabled>
+                                                    {loading ? 'Loading buckets...' : 'Select bucket'}
+                                                </option>
+                                                {buckets.map((bucket) => (
+                                                    <option key={bucket.id} value={bucket.name}>
+                                                        {bucket.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        )}
+                                        <button
+                                            type="button"
+                                            className="icon"
+                                            onClick={() => setSelectedBucketManualInput(!selectedBucketManualInput)}
+                                        >
+                                            &#9998;
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="form-group">
                                     <label htmlFor="topic">Select Topic</label>
                                     <div className="select-with-icon">
                                         {selectedTopicManualInput ? (
                                             <input
                                                 id="topicInput"
                                                 type="text"
-                                                value={selectedTopic.name}
-                                                onChange={(e) =>
-                                                    setSelectedTopic({
-                                                        ...selectedTopic,
-                                                        name: e.target.value,
-                                                    })
-                                                }
+                                                value={selectedTopic}
+                                                onChange={(e) => setSelectedTopic(e.target.value)}
                                             />
                                         ) : (
                                             <div className='select-with-icon'>
                                                 <select
                                                     id="topic"
-                                                    value={selectedTopic.name}
-                                                    onChange={(e) => {
-                                                        const topic = topics.find(
-                                                            (t) => t.name === e.target.value
-                                                        );
-                                                        setSelectedTopic({
-                                                            name: topic.name,
-                                                            type: topic.type,
-                                                        });
-                                                    }}
+                                                    value={selectedTopic}
+                                                    onChange={(e) => setSelectedTopic(e.target.value)}
+                                                    disabled={loading || !selectedBucket}
                                                 >
                                                     <option value="" disabled>
-                                                        Select topic
+                                                        {loading ? 'Loading topics...' : !selectedBucket ? 'Select bucket first' : 'Select topic'}
                                                     </option>
                                                     {topics.map((topic) => (
-                                                        <option key={topic.name} value={topic.name}>
-                                                            {topic.name}
+                                                        <option key={topic} value={topic}>
+                                                            {topic.replace('_', '/')}
                                                         </option>
                                                     ))}
                                                 </select>
@@ -360,27 +471,28 @@ const ChartModal = ({ onClose, onAddChart }) => {
                                 </div>
 
                                 <div className="form-group">
-                                    <label htmlFor="nestedMessage">Select Nested Message Path</label>
+                                    <label htmlFor="field">Select Field</label>
                                     <div className="select-with-icon">
-                                        {selectedPathManualInput ? (
+                                        {selectedFieldManualInput ? (
                                             <input
-                                                id="nestedMessageInput"
+                                                id="fieldInput"
                                                 type="text"
-                                                value={selectedPath}
-                                                onChange={(e) => setSelectedPath(e.target.value)}
+                                                value={selectedField}
+                                                onChange={(e) => setSelectedField(e.target.value)}
                                             />
                                         ) : (
                                             <select
-                                                id="nestedMessage"
-                                                value={selectedPath}
-                                                onChange={(e) => setSelectedPath(e.target.value)}
+                                                id="field"
+                                                value={selectedField}
+                                                onChange={(e) => setSelectedField(e.target.value)}
+                                                disabled={loading || !selectedTopic}
                                             >
                                                 <option value="" disabled>
-                                                    Select path
+                                                    {loading ? 'Loading fields...' : !selectedTopic ? 'Select topic first' : 'Select field'}
                                                 </option>
-                                                {nestedPaths.map((path) => (
-                                                    <option key={path} value={path}>
-                                                        {path}
+                                                {fields.map((field) => (
+                                                    <option key={field} value={field}>
+                                                        {field}
                                                     </option>
                                                 ))}
                                             </select>
@@ -389,7 +501,7 @@ const ChartModal = ({ onClose, onAddChart }) => {
                                             type="button"
                                             className="icon"
                                             onClick={() =>
-                                                setSelectedPathManualInput(!selectedPathManualInput)
+                                                setSelectedFieldManualInput(!selectedFieldManualInput)
                                             }
                                         >
                                             &#9998;
