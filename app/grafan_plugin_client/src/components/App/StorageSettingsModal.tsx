@@ -75,7 +75,7 @@ const StorageSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
     }
   }, [startBucket]);
 
-  const fetchRecordedTopics = async () => {
+  const fetchRecordedTopics = useCallback(async () => {
     try {
       const j: any = await httpGet(api('/api/get_recorded_topics'));
       const ok = j.success ?? !j.error_message;
@@ -85,9 +85,9 @@ const StorageSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
       console.error(e);
       setMessage('Network error while loading recorded topics.');
     }
-  };
+  }, []);
 
-  const fetchCurrentlyRecordingTopics = async () => {
+  const fetchCurrentlyRecordingTopics = useCallback(async () => {
     try {
       const j: any = await httpGet(api('/api/get_currently_recording_topics'));
       const ok = j.success ?? !j.error_message;
@@ -97,7 +97,7 @@ const StorageSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
       console.error(e);
       setMessage('Network error while loading currently recording topics.');
     }
-  };
+  }, []);
 
   const fetchCurrentlyPlayingTopics = useCallback(async () => {
     try {
@@ -117,7 +117,7 @@ const StorageSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
     }
   }, [screen]);
 
-  const fetchRosTopics = async () => {
+  const fetchRosTopics = useCallback(async () => {
     try {
       const j: any = await httpGet(api('/api/topics'));
       const list = Array.isArray(j) ? j : Array.isArray(j?.topics) ? j.topics : [];
@@ -128,25 +128,33 @@ const StorageSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
       setAllTopics([]);
       setMessage('Network error while loading topics.');
     }
-  };
+  }, []);
 
-  // init each open
+  // init each open - only run when modal opens/closes, not when functions change
+  const [wasOpen, setWasOpen] = useState(false);
+  
   useEffect(() => {
-    if (!isOpen) {return;}
-    setMessage('');
-    setScreen(null);
-    fetchBuckets();
-    fetchRecordedTopics();
-    fetchCurrentlyRecordingTopics();
-    fetchCurrentlyPlayingTopics();
-    // reset
-    setSelectedTopics([]);
-    setStopTopics([]);
-    setStopPlayingTopics([]);
-    setPlayTopic('');
-    setPlaySessions([]);
-    setPlayRecordId('');
-  }, [isOpen, fetchBuckets, fetchCurrentlyPlayingTopics]);
+    if (isOpen && !wasOpen) {
+      // Modal is opening for the first time
+      setWasOpen(true);
+      setMessage('');
+      setScreen(null);
+      fetchBuckets();
+      fetchRecordedTopics();
+      fetchCurrentlyRecordingTopics();
+      fetchCurrentlyPlayingTopics();
+      // reset
+      setSelectedTopics([]);
+      setStopTopics([]);
+      setStopPlayingTopics([]);
+      setPlayTopic('');
+      setPlaySessions([]);
+      setPlayRecordId('');
+    } else if (!isOpen && wasOpen) {
+      // Modal is closing
+      setWasOpen(false);
+    }
+  }, [isOpen, wasOpen, fetchBuckets, fetchRecordedTopics, fetchCurrentlyRecordingTopics, fetchCurrentlyPlayingTopics]);
 
   // sessions for play
   useEffect(() => {
@@ -180,12 +188,12 @@ const StorageSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
     if (!isOpen || screen !== 'start') {return;}
     fetchBuckets();
     fetchRosTopics();
-  }, [isOpen, screen, fetchBuckets]);
+  }, [isOpen, screen, fetchBuckets, fetchRosTopics]);
 
   useEffect(() => {
     if (!isOpen || screen !== 'stop') {return;}
     fetchCurrentlyRecordingTopics();
-  }, [isOpen, screen]);
+  }, [isOpen, screen, fetchCurrentlyRecordingTopics]);
 
   useEffect(() => {
     if (!isOpen || screen !== 'stopPlaying') {return;}
@@ -486,7 +494,7 @@ const StorageSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
   }
 
   // PLAY
-  {
+  if (screen === 'play') {
     const topicOptions = recordedTopics.map((t) => ({ value: t, label: t }));
     const sessionOptions = playSessions.map((s) => ({ value: s.record_id, label: `${s.label} – ${s.bucket_name}` }));
 
@@ -534,6 +542,9 @@ const StorageSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
       </div>
     );
   }
+
+  // Fallback - should not reach here  
+  return null;
 };
 
 export default StorageSettingsModal;

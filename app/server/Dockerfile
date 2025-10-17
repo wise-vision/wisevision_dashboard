@@ -1,4 +1,6 @@
-FROM wisevision/ros_with_wisevision_msgs_and_wisevision_core:humble
+FROM wisevision_base_image_dev:humble 
+# TODO: Change to base before merge to main: FROM wisevision/ros_with_wisevision_msgs_and_wisevision_core:humble
+
 
 RUN apt-get update && apt-get install -y \
     python3-pip \

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Button } from '@grafana/ui';
-import { locationService } from '@grafana/runtime';
+// import { Button } from '@grafana/ui';
+// import { locationService } from '@grafana/runtime';
 import StorageSettingsModal from '../components/App/StorageSettingsModal';
-import { prefixRoute } from '../utils/utils.routing';
-import { ROUTES } from '../constants';
+// import { prefixRoute } from '../utils/utils.routing';
+// import { ROUTES } from '../constants';
 import logoImage from '../img/logo_name.png';
 
 export const PageOne: React.FC = () => {
@@ -24,16 +24,8 @@ export const PageOne: React.FC = () => {
         <div style={{ marginLeft: '20px' }}>
           <h2 style={{ marginBottom: '8px', marginTop: 0 }}>WiseOS Application</h2>
           <p style={{ margin: 0, color: '#666', marginBottom: '16px' }}>
-            Manage storage settings and interact with AI agents.
+            Manage storage settings.
           </p>
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <Button
-              variant="primary"
-              onClick={() => locationService.push(prefixRoute(ROUTES.AIAgent))}
-            >
-              🤖 AI Agent
-            </Button>
-          </div>
         </div>
       </div>
       <StorageSettingsModal isOpen={open} onClose={() => setOpen(false)} />

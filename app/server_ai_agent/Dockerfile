@@ -29,15 +29,12 @@ RUN uv --version
 COPY pyproject.toml uv.lock README.md ./
 
 # Install Python dependencies using UV
-RUN uv sync --frozen --no-dev
+RUN uv sync
 
 # Copy source code
 COPY src/ ./src/
-COPY start.sh ./
 COPY .env.example ./
 
-# Make start script executable
-RUN chmod +x start.sh
 
 # Create a non-root user for security
 RUN adduser --disabled-password --gecos '' appuser && \
