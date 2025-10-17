@@ -25,6 +25,10 @@ DEFAULT_MCP_CONFIG: MCPConfig = {
             "run",
             "-i",
             "--rm",
+            "--network=host",
+            "--pid=host", 
+            "--ipc=host",
+            "-v", "/dev/shm:/dev/shm",
             "wisevision/mcp_server_ros_2:humble"
         ],
         "transport": "stdio",

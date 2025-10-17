@@ -5,8 +5,7 @@ services:
       dockerfile: Dockerfile
     container_name: wisevision-backend-agent
     restart: unless-stopped
-    ports:
-      - "8089:8089"
+    network_mode: host
     environment:
       # Bridge configuration
       - BRIDGE_HOST=0.0.0.0
@@ -26,8 +25,11 @@ services:
       - ./pyproject.toml:/app/pyproject.toml
       # Mount logs directory
       - ./logs:/app/logs
-    networks:
-      - wisevision-network
+      # Mount Docker socket to enable Docker-in-Docker for MCP ROS2 server
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Mount /dev/shm for ROS2 shared memory
+      - /dev/shm:/dev/shm
+    # Remove networks section when using host networking
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8089/health"]
       interval: 30s

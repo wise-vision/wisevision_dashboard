@@ -388,6 +388,58 @@ wheels = [
 ]
 
 [[package]]
+name = "mcp-ai-bridge"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "fastapi" },
+    { name = "httpx" },
+    { name = "langchain-core" },
+    { name = "langchain-mcp-adapters" },
+    { name = "langchain-openai" },
+    { name = "langgraph" },
+    { name = "openai" },
+    { name = "orjson" },
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
+    { name = "sse-starlette" },
+    { name = "typing-extensions" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "anyio" },
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "anyio", marker = "extra == 'dev'", specifier = ">=4.4,<5.0" },
+    { name = "fastapi", specifier = ">=0.115,<1.0" },
+    { name = "httpx", specifier = ">=0.27,<1.0" },
+    { name = "langchain-core", specifier = ">=0.3.36" },
+    { name = "langchain-mcp-adapters", specifier = "==0.0.8" },
+    { name = "langchain-openai", specifier = ">=0.2.8" },
+    { name = "langgraph", specifier = ">=0.2.39" },
+    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.11,<2.0" },
+    { name = "openai", specifier = ">=1.51.0" },
+    { name = "orjson", specifier = ">=3.10,<4.0" },
+    { name = "pydantic", specifier = ">=2.7,<3.0" },
+    { name = "pydantic-settings", specifier = ">=2.2,<3.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3,<9.0" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23,<1.0" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.6.9,<1.0" },
+    { name = "sse-starlette", specifier = ">=2.1,<3.0" },
+    { name = "typing-extensions", specifier = ">=4.10" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.30,<1.0" },
+]
+provides-extras = ["dev", "agent", "bridge"]
+
+[[package]]
 name = "mypy"
 version = "1.18.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1047,58 +1099,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/62/b2/5ac99a041a29e58e95f907876b04f7067a0242cb85b5f39e726153981503/xxhash-3.6.0-pp311-pypy311_pp73-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:c6dc31591899f5e5666f04cc2e529e69b4072827085c1ef15294d91a004bc1bd", size = 32481 },
     { url = "https://files.pythonhosted.org/packages/7b/d9/8d95e906764a386a3d3b596f3c68bb63687dfca806373509f51ce8eea81f/xxhash-3.6.0-pp311-pypy311_pp73-win_amd64.whl", hash = "sha256:15e0dac10eb9309508bfc41f7f9deaa7755c69e35af835db9cb10751adebc35d", size = 31565 },
 ]
-
-[[package]]
-name = "your-project"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "fastapi" },
-    { name = "httpx" },
-    { name = "langchain-core" },
-    { name = "langchain-mcp-adapters" },
-    { name = "langchain-openai" },
-    { name = "langgraph" },
-    { name = "openai" },
-    { name = "orjson" },
-    { name = "pydantic" },
-    { name = "pydantic-settings" },
-    { name = "sse-starlette" },
-    { name = "typing-extensions" },
-    { name = "uvicorn", extra = ["standard"] },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "anyio" },
-    { name = "mypy" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "anyio", marker = "extra == 'dev'", specifier = ">=4.4,<5.0" },
-    { name = "fastapi", specifier = ">=0.115,<1.0" },
-    { name = "httpx", specifier = ">=0.27,<1.0" },
-    { name = "langchain-core", specifier = ">=0.3.36" },
-    { name = "langchain-mcp-adapters", specifier = "==0.0.8" },
-    { name = "langchain-openai", specifier = ">=0.2.8" },
-    { name = "langgraph", specifier = ">=0.2.39" },
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.11,<2.0" },
-    { name = "openai", specifier = ">=1.51.0" },
-    { name = "orjson", specifier = ">=3.10,<4.0" },
-    { name = "pydantic", specifier = ">=2.7,<3.0" },
-    { name = "pydantic-settings", specifier = ">=2.2,<3.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3,<9.0" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23,<1.0" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.6.9,<1.0" },
-    { name = "sse-starlette", specifier = ">=2.1,<3.0" },
-    { name = "typing-extensions", specifier = ">=4.10" },
-    { name = "uvicorn", extras = ["standard"], specifier = ">=0.30,<1.0" },
-]
-provides-extras = ["dev", "agent", "bridge"]
 
 [[package]]
 name = "zstandard"
