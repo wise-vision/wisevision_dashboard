@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from agent.runner import run_graph
 from agent.mcp_config import DEFAULT_MCP_CONFIG
+from agent.user_mcp_config import load_user_mcp_config, save_user_mcp_config, merge_with_defaults
 from langchain_mcp_adapters.client import MultiServerMCPClient
 
 
@@ -54,6 +55,9 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
+
+# Load user MCP configuration on startup
+USER_MCP_CONFIG = load_user_mcp_config()
 
 class Session:
     def __init__(self, cfg: Dict[str, Any], openai_api_key: Optional[str] = None):
@@ -116,6 +120,7 @@ class SimpleChatBody(BaseModel):
     history: Optional[list[dict[str, Any]]] = []
     openai_api_key: Optional[str] = None
     use_mcp: Optional[bool] = True  # Default to True for backward compatibility
+    mcp_config: Optional[Dict[str, Any]] = None  # Custom MCP configuration from user
 
 @app.post("/chat")
 async def chat(body: ChatBody):
@@ -176,8 +181,23 @@ async def simple_chat(body: SimpleChatBody):
         # Add the new message
         messages.append({"role": "user", "content": body.message})
         
-        # Use MCP config only if use_mcp is True
-        mcp_config = DEFAULT_MCP_CONFIG if body.use_mcp else {}
+        # Determine which MCP config to use:
+        # 1. If user provides custom config, use that (merged with defaults)
+        # 2. Otherwise, use user's saved config merged with defaults
+        # 3. If use_mcp is False, use empty config
+        if body.mcp_config:
+            # Filter out disabled servers
+            enabled_config = {k: v for k, v in body.mcp_config.items() if v.get("enabled", True)}
+            mcp_config = enabled_config
+        elif body.use_mcp:
+            # Merge user's saved config with defaults
+            merged_config = merge_with_defaults(USER_MCP_CONFIG, DEFAULT_MCP_CONFIG)
+            # Filter out disabled servers
+            enabled_config = {k: v for k, v in merged_config.items() if v.get("enabled", True)}
+            mcp_config = enabled_config
+        else:
+            mcp_config = {}
+        
         result = await run_graph(messages, mcp_config=mcp_config, openai_api_key=api_key)
         
         # Extract the last assistant message
@@ -244,6 +264,75 @@ async def health_check():
         "ready_for_chat": has_api_key
     })
 
+@app.get("/mcp/servers")
+async def get_mcp_servers():
+    """Get currently configured MCP servers (both default and user-configured)"""
+    servers = []
+    
+    # Merge default and user configs
+    all_configs = merge_with_defaults(USER_MCP_CONFIG, DEFAULT_MCP_CONFIG)
+    
+    for name, config in all_configs.items():
+        # Check if this is a default server
+        is_default = name in DEFAULT_MCP_CONFIG
+        
+        server_info = {
+            "id": name,
+            "name": config.get("name", name.upper() if name != "ros2" else "ROS2"),
+            "transport": config.get("transport", "stdio"),
+            "enabled": config.get("enabled", True),
+            "is_default": is_default,
+        }
+        
+        # Add command info for stdio transport
+        if config.get("transport") == "stdio":
+            server_info["command"] = config.get("command", "")
+            server_info["args"] = config.get("args", [])
+        # Add URL info for SSE transport
+        elif config.get("transport") == "sse":
+            server_info["url"] = config.get("url", "")
+        
+        servers.append(server_info)
+    
+    return JSONResponse({
+        "servers": servers,
+        "count": len(servers),
+        "ok": True
+    })
+
+class UpdateMCPConfigBody(BaseModel):
+    mcp_config: Dict[str, Any]
+
+@app.post("/mcp/servers/save")
+async def save_mcp_servers(body: UpdateMCPConfigBody):
+    """Save user's custom MCP server configuration to file"""
+    global USER_MCP_CONFIG
+    
+    try:
+        # Save to file
+        success = save_user_mcp_config(body.mcp_config)
+        
+        if success:
+            # Update in-memory config
+            USER_MCP_CONFIG = body.mcp_config
+            
+            return JSONResponse({
+                "ok": True,
+                "message": "MCP configuration saved successfully",
+                "servers_count": len(body.mcp_config)
+            })
+        else:
+            return JSONResponse({
+                "ok": False,
+                "error": "Failed to save configuration to file"
+            }, status_code=500)
+            
+    except Exception as e:
+        return JSONResponse({
+            "ok": False,
+            "error": str(e)
+        }, status_code=500)
+
 @app.get("/debug")
 async def debug_info():
     """Debug information endpoint"""
@@ -251,6 +340,7 @@ async def debug_info():
         "cors_origins": cors_origins_list,
         "sessions_count": len(sessions),
         "default_mcp_config": DEFAULT_MCP_CONFIG,
+        "user_mcp_config": USER_MCP_CONFIG,
     })
 
 def main():

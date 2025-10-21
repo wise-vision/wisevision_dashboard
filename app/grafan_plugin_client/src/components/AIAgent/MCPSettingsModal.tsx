@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { css } from '@emotion/css';
-import { useTheme2, Modal, Button, Input, Field, Select, Alert, IconButton, ConfirmModal } from '@grafana/ui';
-import { GrafanaTheme2, SelectableValue } from '@grafana/data';
+import { useTheme2, Modal, Button, Input, Field, Alert, IconButton, ConfirmModal, Badge } from '@grafana/ui';
+import { GrafanaTheme2 } from '@grafana/data';
 
 export interface MCPServer {
   id: string;
@@ -10,6 +10,7 @@ export interface MCPServer {
   args: string[];
   env?: Record<string, string>;
   enabled: boolean;
+  is_default?: boolean;  // Indicates if this is a backend default server
 }
 
 interface MCPSettingsModalProps {
@@ -18,12 +19,6 @@ interface MCPSettingsModalProps {
   servers: MCPServer[];
   onServersChange: (servers: MCPServer[]) => void;
 }
-
-const serverTypeOptions = [
-  { label: 'Filesystem MCP', value: 'filesystem', description: 'File system operations' },
-  { label: 'ROS2 MCP', value: 'ros2', description: 'ROS2 integration' },
-  { label: 'Custom MCP', value: 'custom', description: 'Custom MCP server' },
-];
 
 const getStyles = (theme: GrafanaTheme2) => ({
   modalContent: css`
@@ -66,6 +61,20 @@ const getStyles = (theme: GrafanaTheme2) => ({
     padding: ${theme.spacing(0.5)} ${theme.spacing(1)};
     border-radius: ${theme.shape.radius.default};
     margin-top: ${theme.spacing(1)};
+    word-break: break-all;
+    overflow-wrap: break-word;
+    line-height: 1.4;
+    cursor: pointer;
+    transition: all 0.2s;
+    
+    &:hover {
+      background: ${theme.colors.emphasize(theme.colors.background.canvas, 0.03)};
+      color: ${theme.colors.text.primary};
+    }
+  `,
+  serverCommandExpanded: css`
+    background: ${theme.colors.background.secondary};
+    border: 1px solid ${theme.colors.border.weak};
   `,
   serverActions: css`
     display: flex;
@@ -114,43 +123,37 @@ export const MCPSettingsModal: React.FC<MCPSettingsModalProps> = ({
     env: {},
     enabled: true,
   });
-  const [serverType, setServerType] = useState<SelectableValue<string>>();
   const [argsString, setArgsString] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [expandedServers, setExpandedServers] = useState<Set<string>>(new Set());
 
-  const handleServerTypeChange = (selection: SelectableValue<string>) => {
-    setServerType(selection);
-    
-    // Set default values based on server type
-    switch (selection.value) {
-      case 'filesystem':
-        setNewServer({
-          ...newServer,
-          name: 'Filesystem MCP',
-          command: 'mcp-server-filesystem',
-          args: ['/allowed/path1', '/allowed/path2'],
-        });
-        setArgsString('/allowed/path1 /allowed/path2');
-        break;
-      case 'ros2':
-        setNewServer({
-          ...newServer,
-          name: 'ROS2 MCP',
-          command: 'mcp-server-ros2',
-          args: [],
-        });
-        setArgsString('');
-        break;
-      case 'custom':
-        setNewServer({
-          ...newServer,
-          name: 'Custom MCP Server',
-          command: '',
-          args: [],
-        });
-        setArgsString('');
-        break;
+  // Helper function to format command display
+  const formatCommand = (command: string, args: string[]) => {
+    const fullCommand = `${command} ${args.join(' ')}`;
+    // If command is too long, show command + first arg + "..."
+    if (fullCommand.length > 80) {
+      const firstArg = args.length > 0 ? args[0] : '';
+      if (firstArg.length > 50) {
+        // If first arg is very long (like a path), show just the filename
+        const parts = firstArg.split('/');
+        const filename = parts[parts.length - 1];
+        return `${command} .../${filename}${args.length > 1 ? ' +' + (args.length - 1) + ' args' : ''}`;
+      }
+      return `${command} ${firstArg}${args.length > 1 ? ' +' + (args.length - 1) + ' args' : ''}`;
     }
+    return fullCommand;
+  };
+
+  const toggleServerExpanded = (serverId: string) => {
+    setExpandedServers(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(serverId)) {
+        newSet.delete(serverId);
+      } else {
+        newSet.add(serverId);
+      }
+      return newSet;
+    });
   };
 
   const handleAddServer = () => {
@@ -178,7 +181,6 @@ export const MCPSettingsModal: React.FC<MCPSettingsModalProps> = ({
       enabled: true,
     });
     setArgsString('');
-    setServerType(undefined);
     setShowAddForm(false);
   };
 
@@ -237,14 +239,28 @@ export const MCPSettingsModal: React.FC<MCPSettingsModalProps> = ({
                     <div>
                       <div className={styles.serverName}>
                         {server.name}
+                        {server.is_default && (
+                          <Badge 
+                            text="Default" 
+                            color="blue" 
+                            style={{ marginLeft: theme.spacing(1) }}
+                          />
+                        )}
                         {!server.enabled && (
                           <span style={{ color: theme.colors.text.secondary, fontWeight: 'normal', marginLeft: theme.spacing(1) }}>
                             (disabled)
                           </span>
                         )}
                       </div>
-                      <div className={styles.serverCommand}>
-                        {server.command} {server.args.join(' ')}
+                      <div 
+                        className={`${styles.serverCommand} ${expandedServers.has(server.id) ? styles.serverCommandExpanded : ''}`}
+                        onClick={() => toggleServerExpanded(server.id)}
+                        title="Click to show full command"
+                      >
+                        {expandedServers.has(server.id) 
+                          ? `${server.command} ${server.args.join(' ')}`
+                          : formatCommand(server.command, server.args)
+                        }
                       </div>
                     </div>
                     <div className={styles.serverActions}>
@@ -252,13 +268,16 @@ export const MCPSettingsModal: React.FC<MCPSettingsModalProps> = ({
                         variant={server.enabled ? 'secondary' : 'primary'}
                         size="sm"
                         onClick={() => handleToggleServer(server.id)}
+                        disabled={server.is_default}
+                        tooltip={server.is_default ? "Default servers cannot be disabled" : ""}
                       >
                         {server.enabled ? 'Disable' : 'Enable'}
                       </Button>
                       <IconButton
                         name="trash-alt"
                         onClick={() => setDeleteConfirm(server.id)}
-                        tooltip="Delete server"
+                        tooltip={server.is_default ? "Default servers cannot be deleted" : "Delete server"}
+                        disabled={server.is_default}
                       />
                     </div>
                   </div>
@@ -271,22 +290,13 @@ export const MCPSettingsModal: React.FC<MCPSettingsModalProps> = ({
           {showAddForm && (
             <div className={styles.addServerForm}>
               <h4>Add New MCP Server</h4>
-              
-              <Field label="Server Type" description="Choose a predefined server type or create a custom one">
-                <Select
-                  value={serverType}
-                  options={serverTypeOptions}
-                  onChange={handleServerTypeChange}
-                  placeholder="Select server type"
-                />
-              </Field>
 
               <div className={styles.formRow}>
                 <Field label="Server Name" className={styles.formField}>
                   <Input
                     value={newServer.name || ''}
                     onChange={(e) => setNewServer({ ...newServer, name: e.currentTarget.value })}
-                    placeholder="e.g., Filesystem MCP"
+                    placeholder="e.g., Custom MCP Server"
                   />
                 </Field>
                 <Field label="Command" className={styles.formField}>
