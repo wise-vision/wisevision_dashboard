@@ -328,7 +328,9 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) =
     // Build elements, avoiding overlaps
     lastIndex = 0;
     for (const match of allMatches) {
-      if (match.index < lastIndex) continue; // Skip overlapping
+      if (match.index < lastIndex) {
+        continue; // Skip overlapping
+      }
 
       if (match.index > lastIndex) {
         elements.push(text.substring(lastIndex, match.index));

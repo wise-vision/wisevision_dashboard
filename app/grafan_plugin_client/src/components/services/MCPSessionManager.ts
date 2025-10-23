@@ -295,7 +295,7 @@ export class MCPSessionManager {
 
   async streamMessage(
     content: string,
-    requireApproval: boolean = false,
+    requireApproval = false,
     onToolApproval?: (approvalId: string, toolCalls: any[]) => Promise<boolean>
   ) {
     if (!content.trim()) {

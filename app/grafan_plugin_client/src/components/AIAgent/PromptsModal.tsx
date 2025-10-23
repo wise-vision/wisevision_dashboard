@@ -317,7 +317,7 @@ export const PromptsModal: React.FC<PromptsModalProps> = ({
 
               {selectedPrompt.arguments.length === 0 ? (
                 <Alert severity="info" title="No arguments required">
-                  This prompt doesn't require any arguments. Click Execute to run it.
+                  This prompt doesn&apos;t require any arguments. Click Execute to run it.
                 </Alert>
               ) : (
                 selectedPrompt.arguments.map((arg) => (

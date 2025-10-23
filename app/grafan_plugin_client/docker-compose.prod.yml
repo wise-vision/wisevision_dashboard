@@ -11,4 +11,8 @@ services:
       - GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=wisevision-wiseos-app
       - GF_LOG_LEVEL=debug
       - GF_LOG_MODE=console
+    volumes:
+      - grafana-storage:/var/lib/grafana
+volumes:
+  grafana-storage:
 
