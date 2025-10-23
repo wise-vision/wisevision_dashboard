@@ -666,7 +666,7 @@ async def get_mcp_servers():
     })
 
 class UpdateMCPConfigBody(BaseModel):
-    mcp_config: Dict[str, Any]
+    mcp_config: dict[str, Any]
 
 @app.post("/mcp/servers/save")
 async def save_mcp_servers(body: UpdateMCPConfigBody):
