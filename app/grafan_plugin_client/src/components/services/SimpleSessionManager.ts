@@ -6,6 +6,16 @@ export interface SimpleChatMessage {
   content: string;
   timestamp: Date;
   id: string;
+  // For tool approval messages
+  toolApproval?: {
+    approvalId: string;
+    toolCalls: Array<{
+      name: string;
+      args: Record<string, any>;
+      id?: string;
+    }>;
+    status?: 'pending' | 'approved' | 'rejected';
+  };
 }
 
 export interface SimpleSessionState {

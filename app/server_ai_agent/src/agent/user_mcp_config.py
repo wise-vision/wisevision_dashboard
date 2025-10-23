@@ -5,7 +5,7 @@ Handles loading and saving user-defined MCP server configurations
 import json
 import os
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any
 import logging
 
 logger = logging.getLogger(__name__)
@@ -15,7 +15,7 @@ CONFIG_DIR = Path(__file__).parent.parent.parent  # Points to server_ai_agent ro
 USER_CONFIG_FILE = CONFIG_DIR / ".mcp_user_config.json"
 
 
-def load_user_mcp_config() -> Dict[str, Any]:
+def load_user_mcp_config() -> dict[str, Any]:
     """
     Load user's custom MCP configuration from file.
     Returns empty dict if file doesn't exist.
@@ -37,7 +37,7 @@ def load_user_mcp_config() -> Dict[str, Any]:
         return {}
 
 
-def save_user_mcp_config(config: Dict[str, Any]) -> bool:
+def save_user_mcp_config(config: dict[str, Any]) -> bool:
     """
     Save user's custom MCP configuration to file.
     Returns True if successful, False otherwise.
@@ -57,13 +57,34 @@ def save_user_mcp_config(config: Dict[str, Any]) -> bool:
         return False
 
 
-def merge_with_defaults(user_config: Dict[str, Any], default_config: Dict[str, Any]) -> Dict[str, Any]:
+def merge_with_defaults(user_config: dict[str, Any], default_config: dict[str, Any]) -> dict[str, Any]:
     """
     Merge user configuration with default configuration.
     User config takes precedence for servers with the same name.
+    Filters out extra fields that aren't needed by MCP client.
     """
-    merged = default_config.copy()
-    merged.update(user_config)
+    merged = {}
+    
+    # Add default configs first
+    for name, config in default_config.items():
+        # Only keep MCP-required fields
+        clean_config = {
+            "command": config.get("command"),
+            "args": config.get("args", []),
+            "transport": config.get("transport", "stdio"),
+        }
+        merged[name] = clean_config
+    
+    # Override with user configs
+    for name, config in user_config.items():
+        # Only keep MCP-required fields, ignore UI-only fields like 'name', 'enabled', 'is_default'
+        clean_config = {
+            "command": config.get("command"),
+            "args": config.get("args", []),
+            "transport": config.get("transport", "stdio"),
+        }
+        merged[name] = clean_config
+    
     return merged
 
 

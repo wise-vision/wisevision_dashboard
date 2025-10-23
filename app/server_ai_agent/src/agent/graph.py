@@ -24,13 +24,13 @@ async def chat_node(state: AgentState, _config: Dict[str, Any] | None = None) ->
     if not api_key:
         raise ValueError("OpenAI API key not found. Please set OPENAI_API_KEY environment variable.")
     
-    async with MultiServerMCPClient(mcp_config) as mcp_client:
-        tools = mcp_client.get_tools()
-        model = ChatOpenAI(model="gpt-4o", api_key=api_key)
-        react_agent = create_react_agent(model, tools)
-        resp = await react_agent.ainvoke({"messages": state["messages"]})
-        updated = state["messages"] + resp.get("messages", [])
-        return Command(goto=END, update={"messages": updated})
+    mcp_client = MultiServerMCPClient(mcp_config)
+    tools = await mcp_client.get_tools()
+    model = ChatOpenAI(model="gpt-4o", api_key=api_key)
+    react_agent = create_react_agent(model, tools)
+    resp = await react_agent.ainvoke({"messages": state["messages"]})
+    updated = state["messages"] + resp.get("messages", [])
+    return Command(goto=END, update={"messages": updated})
 
 workflow = StateGraph(AgentState)
 workflow.add_node("chat_node", chat_node)

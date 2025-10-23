@@ -5,6 +5,7 @@ import { GrafanaTheme2 } from '@grafana/data';
 import { MCPSessionManager } from '../services/MCPSessionManager';
 import { MCPSettingsModal, MCPServer } from './MCPSettingsModal';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import { PromptsModal } from './PromptsModal';
 
 const getStyles = (theme: GrafanaTheme2) => ({
   container: css`
@@ -352,6 +353,7 @@ export const DualChatInterface: React.FC = () => {
   const styles = getStyles(theme);
   const [message, setMessage] = useState('');
   const [showMCPSettings, setShowMCPSettings] = useState(false);
+  const [showPromptsModal, setShowPromptsModal] = useState(false);
   const [mcpServers, setMcpServers] = useState<MCPServer[]>([]);
   const [mcpSessionManager] = useState(() => new MCPSessionManager());
   const [mcpSessionState, setMcpSessionState] = useState(() => mcpSessionManager.getState());
@@ -359,6 +361,9 @@ export const DualChatInterface: React.FC = () => {
   const [loadingServers, setLoadingServers] = useState(true);
   const [showMCPServersList, setShowMCPServersList] = useState(false);
   const [expandedModalServers, setExpandedModalServers] = useState<Set<string>>(new Set());
+  
+  // Tool approval state (streaming is always enabled)
+  const [requireToolApproval, setRequireToolApproval] = useState(true);
   
   // Use MCP session manager for unified chat
   const sessionManager = mcpSessionManager;
@@ -436,7 +441,28 @@ export const DualChatInterface: React.FC = () => {
 
   useEffect(() => {
     scrollToBottom();
-  }, [sessionState.messages]);
+  }, [sessionState.messages, sessionState.loading]);
+
+  // Also scroll when messages container is updated (for streaming tokens)
+  useEffect(() => {
+    const messagesContainer = document.querySelector(`.${styles.messagesContainer}`);
+    if (messagesContainer) {
+      const observer = new MutationObserver(() => {
+        scrollToBottom();
+      });
+      
+      observer.observe(messagesContainer, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+      });
+      
+      return () => observer.disconnect();
+    }
+    
+    // Return empty cleanup function if no container found
+    return () => {};
+  }, [styles.messagesContainer]);
 
   // Update session manager when MCP servers change
   useEffect(() => {
@@ -461,7 +487,8 @@ export const DualChatInterface: React.FC = () => {
       return;
     }
 
-    await sessionManager.sendMessage(message);
+    // Always use streaming mode
+    await sessionManager.streamMessage(message, requireToolApproval);
     setMessage('');
   };
 
@@ -469,6 +496,94 @@ export const DualChatInterface: React.FC = () => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
+    }
+  };
+
+  const handleExecutePrompt = async (promptName: string, args: Record<string, any>, serverName: string) => {
+    try {
+      const { getBackendSrv } = await import('@grafana/runtime');
+      const { lastValueFrom } = await import('rxjs');
+      
+      // Call the backend to execute the prompt
+      const response = await lastValueFrom(
+        getBackendSrv().fetch({
+          url: '/api/plugin-proxy/wisevision-wiseos-app/agent_backend/mcp/prompts/execute',
+          method: 'POST',
+          data: {
+            prompt_name: promptName,
+            arguments: args,
+            server_name: serverName,
+          }
+        })
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to execute prompt');
+      }
+
+      const data = response.data as any;
+
+      if (data.ok) {
+        // The prompt execution returns messages from the MCP server
+        // These messages contain system instructions and the user request
+        if (data.messages && data.messages.length > 0) {
+          // Add each message to the session state manually
+          // This builds up the conversation context before sending to AI
+          const promptMessages: any[] = [];
+          
+          for (const msg of data.messages) {
+            const chatMessage = {
+              role: msg.role === 'ai' ? 'assistant' : msg.role,
+              content: msg.content,
+              timestamp: new Date(),
+              id: `prompt-${Date.now()}-${Math.random()}`,
+            };
+            promptMessages.push(chatMessage);
+          }
+          
+          // Now we need to send these messages to the AI
+          // We'll add them to history and send the last human message as the current request
+          
+          // Build the history from current messages + prompt messages (except the last one)
+          const systemMessages = promptMessages.slice(0, -1); // All but last message
+          const userRequest = promptMessages[promptMessages.length - 1]; // Last message should be the user request
+          
+          // Add the system messages to session history (context from the prompt)
+          for (const msg of systemMessages) {
+            sessionManager.addMessage({
+              role: msg.role === 'ai' ? 'assistant' : msg.role,
+              content: msg.content,
+              timestamp: new Date(),
+              id: `system-${Date.now()}-${Math.random()}`,
+            });
+          }
+          
+          // Always use streaming mode
+          // Stream the AI response (streamMessage will add the user message automatically)
+          // No callback needed - approval is handled inline in chat
+          // DON'T await - let it stream in background so modal can close immediately
+          sessionManager.streamMessage(userRequest.content, requireToolApproval);
+          // Modal will close immediately while streaming continues
+        } else {
+          // Fallback: if no messages, send a description
+          const argsStr = Object.keys(args).length > 0 
+            ? ` with arguments: ${JSON.stringify(args, null, 2)}`
+            : '';
+          await sessionManager.sendMessage(`Execute prompt: ${promptName} from ${serverName}${argsStr}`);
+        }
+      } else {
+        throw new Error(data.error || 'Failed to execute prompt');
+      }
+    } catch (error) {
+      console.error('Error executing prompt:', error);
+      // Add error message to chat instead of throwing
+      sessionManager.addMessage({
+        role: 'assistant',
+        content: `❌ Error executing prompt: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        timestamp: new Date(),
+        id: `error-${Date.now()}`,
+      });
+      // Don't re-throw so modal can close
     }
   };
 
@@ -513,6 +628,25 @@ export const DualChatInterface: React.FC = () => {
           <Button
             variant="secondary"
             size="sm"
+            icon="list-ul"
+            onClick={() => setShowPromptsModal(true)}
+            title="View available MCP prompts"
+          >
+            Prompts
+          </Button>
+          <div 
+            onClick={() => setRequireToolApproval(!requireToolApproval)}
+            style={{ cursor: 'pointer' }}
+            title="Click to toggle tool approval requirement"
+          >
+            <Badge 
+              color={requireToolApproval ? "blue" : "purple"} 
+              text={requireToolApproval ? "Approval required" : "Auto-execute"}
+            />
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => setShowMCPSettings(true)}
           >
             MCP Settings
@@ -543,7 +677,78 @@ export const DualChatInterface: React.FC = () => {
             }`}
           >
             <div className={styles.messageContent}>
-              {msg.role === 'assistant' ? (
+              {/* Tool Approval UI - Inline in chat */}
+              {msg.toolApproval ? (
+                <div>
+                  <div style={{ 
+                    padding: '12px', 
+                    background: theme.colors.warning.transparent,
+                    border: `2px solid ${theme.colors.warning.border}`,
+                    borderRadius: '8px',
+                    marginBottom: '8px'
+                  }}>
+                    <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>
+                      ⚠️ Tool Approval Required
+                    </div>
+                    {msg.toolApproval.toolCalls.map((tool: any, idx: number) => (
+                      <div key={idx} style={{
+                        background: theme.colors.background.secondary,
+                        padding: '8px',
+                        borderRadius: '4px',
+                        marginBottom: '8px'
+                      }}>
+                        <div style={{ fontWeight: 500, marginBottom: '4px' }}>
+                          🔧 {tool.name}
+                        </div>
+                        {Object.keys(tool.args).length > 0 && (
+                          <pre style={{
+                            fontSize: '11px',
+                            background: theme.colors.background.canvas,
+                            padding: '8px',
+                            borderRadius: '4px',
+                            overflow: 'auto',
+                            maxHeight: '200px'
+                          }}>
+                            {JSON.stringify(tool.args, null, 2)}
+                          </pre>
+                        )}
+                      </div>
+                    ))}
+                    
+                    {/* Approval buttons or status */}
+                    {msg.toolApproval.status === 'pending' ? (
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => {
+                            sessionManager.handleToolApproval(msg.toolApproval.approvalId, false);
+                          }}
+                        >
+                          ✗ Reject
+                        </Button>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => {
+                            sessionManager.handleToolApproval(msg.toolApproval.approvalId, true);
+                          }}
+                        >
+                          ✓ Approve
+                        </Button>
+                      </div>
+                    ) : msg.toolApproval.status === 'approved' ? (
+                      <div style={{ color: theme.colors.success.text, fontWeight: 500 }}>
+                        Approved
+                      </div>
+                    ) : (
+                      <div style={{ color: theme.colors.error.text, fontWeight: 500 }}>
+                        Rejected
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : msg.role === 'assistant' ? (
                 <MarkdownRenderer content={msg.content} />
               ) : (
                 <>{msg.content}</>
@@ -596,6 +801,13 @@ export const DualChatInterface: React.FC = () => {
         onServersChange={setMcpServers}
       />
 
+      {/* Prompts Modal */}
+      <PromptsModal
+        isOpen={showPromptsModal}
+        onClose={() => setShowPromptsModal(false)}
+        onExecutePrompt={handleExecutePrompt}
+      />
+
       {/* MCP Servers List Modal */}
       <Modal
         title=""
@@ -616,7 +828,7 @@ export const DualChatInterface: React.FC = () => {
           <div className={styles.mcpServersModalList}>
             {mcpServers.filter(s => s.enabled).length === 0 ? (
               <Alert severity="info" title="No active servers">
-                No MCP servers are currently active. Add servers in MCP Settings to extend the AI agent's capabilities.
+                No MCP servers are currently active. Add servers in MCP Settings to extend the AI agent&apos;s capabilities.
               </Alert>
             ) : (
               mcpServers.filter(s => s.enabled).map((server) => (

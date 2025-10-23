@@ -5,4 +5,6 @@ export { SessionProvider, useSession } from './SessionProvider';
 export { SimpleChat } from './SimpleChat';
 export { SimpleChatInterface } from './SimpleChatInterface';
 export { SimpleSessionProvider, useSimpleSession } from './SimpleSessionProvider';
+export { PromptsModal } from './PromptsModal';
+export { ToolApprovalModal } from './ToolApprovalModal';
 export * from './types';
