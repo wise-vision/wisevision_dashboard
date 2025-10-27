@@ -1,3 +1,13 @@
+#
+#  Copyright (C) 2025 wisevision
+#
+#  SPDX-License-Identifier: MPL-2.0
+#
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at https://mozilla.org/MPL/2.0/.
+#
+
 import os
 from typing import Dict, List, Union
 from typing_extensions import TypedDict, Literal
@@ -14,11 +24,6 @@ class SSEConnection(TypedDict):
 MCPConfig = Dict[str, Union[StdioConnection, SSEConnection]]
 
 DEFAULT_MCP_CONFIG: MCPConfig = {
-    "math": {
-        "command": "python",
-        "args": [os.path.join(os.path.dirname(__file__), "servers", "math_server.py")],
-        "transport": "stdio",
-    },
     "ros2": {
         "command": "docker",
         "args": [

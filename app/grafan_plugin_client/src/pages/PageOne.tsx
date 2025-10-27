@@ -1,13 +1,19 @@
+/*
+ * Copyright (C) 2025 wisevision
+ *
+ * SPDX-License-Identifier: MPL-2.0
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
 import React, { useState } from 'react';
-// import { Button } from '@grafana/ui';
-// import { locationService } from '@grafana/runtime';
 import StorageSettingsModal from '../components/App/StorageSettingsModal';
-// import { prefixRoute } from '../utils/utils.routing';
-// import { ROUTES } from '../constants';
 import logoImage from '../img/logo_name.png';
 
 export const PageOne: React.FC = () => {
-  const [open, setOpen] = useState(true); // możesz ustawić false i otwierać przyciskiem
+  const [open, setOpen] = useState(true);
   return (
     <div>
       <div style={{ marginBottom: '24px', marginLeft: '40px' }}>
