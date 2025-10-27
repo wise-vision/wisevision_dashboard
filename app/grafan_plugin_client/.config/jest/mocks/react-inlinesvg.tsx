@@ -1,3 +1,13 @@
+/*
+ * Copyright (C) 2025 wisevision
+ *
+ * SPDX-License-Identifier: MPL-2.0
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
 // Due to the grafana/ui Icon component making fetch requests to
 // `/public/img/icon/<icon_name>.svg` we need to mock react-inlinesvg to prevent
 // the failed fetch requests from displaying errors in console.

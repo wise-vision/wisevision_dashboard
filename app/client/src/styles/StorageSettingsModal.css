@@ -1,4 +1,13 @@
-/* === Storage-only styles (izolowane) === */
+/*
+ * Copyright (C) 2025 wisevision
+ *
+ * SPDX-License-Identifier: MPL-2.0
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
 .storage-modal {
   position: fixed; inset: 0;
   background: rgba(0,0,0,.4);
@@ -31,7 +40,6 @@
   margin-top: 24px;
 }
 
-/* >>> JEDEN, docelowy styl przycisków – zawsze ten sam NIEBIESKI jak chcesz <<< */
 .storage-btn {
   background: linear-gradient(145deg, #1a73e8, #1558b0);
   color: #fff;
@@ -57,6 +65,5 @@
   box-shadow: 0 8px 16px rgba(26, 115, 232, .3);
 }
 
-/* Kompatybilność/animacje z Twojego pliku */
 @keyframes fadeOut { from {opacity:1} to {opacity:0} }
 @keyframes scaleDown { from {transform:scale(1)} to {transform:scale(.9)} }
