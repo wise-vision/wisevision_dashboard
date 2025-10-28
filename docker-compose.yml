@@ -1,5 +1,5 @@
 include:
-  - ./app/grafan_plugin_client/docker-compose.prod.yml
+  - ./app/grafana_plugin_client/docker-compose.prod.yml
   - ./app/server_ai_agent/docker-compose.prod.yml
 
 services:

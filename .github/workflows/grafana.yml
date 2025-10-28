@@ -12,6 +12,12 @@ on:
 jobs:
   build:
     runs-on: wisevision-runner
+    container:
+      image: node:16
+    defaults:
+      run:
+        working-directory: app/grafana_plugin_client
+
     steps:
       - uses: actions/checkout@v3
       - name: Setup Node.js environment
@@ -19,6 +25,7 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
+          cache-dependency-path: app/grafana_plugin_client/package-lock.json
 
       - name: Install dependencies
         run: npm ci
