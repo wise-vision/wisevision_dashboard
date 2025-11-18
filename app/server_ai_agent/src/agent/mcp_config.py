@@ -34,7 +34,7 @@ DEFAULT_MCP_CONFIG: MCPConfig = {
             "--pid=host", 
             "--ipc=host",
             "-v", "/dev/shm:/dev/shm",
-            "wisevision/mcp_server_ros_2:humble"
+            "wisevision/mcp_server_ros_2:jazzy"
         ],
         "transport": "stdio",
     }

@@ -1,4 +1,5 @@
-FROM wisevision_base_image_dev:humble 
+ARG ROS_DISTRO=jazzy
+FROM wisevision_base_image_dev:${ROS_DISTRO}
 # TODO: Change to base before merge to main: FROM wisevision/ros_with_wisevision_msgs_and_wisevision_core:humble
 
 
@@ -17,7 +18,11 @@ ENV PYTHONPATH=/usr/src/app
 
 WORKDIR /usr/src/app/server
 
-RUN pip3 install --no-cache-dir -r requirements.txt
+RUN if [ "$ROS_DISTRO" = "humble" ]; then \
+        pip3 install --no-cache-dir -r requirements.txt; \
+    elif [ "$ROS_DISTRO" = "jazzy" ]; then \
+        pip3 install --no-cache-dir -r requirements.txt --break-system-packages; \
+    fi
 WORKDIR /usr/src
 SHELL ["/bin/bash", "-c"]
 
