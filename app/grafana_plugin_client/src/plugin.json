@@ -22,7 +22,7 @@
       "type": "page",
       "name": "Page One",
       "path": "/a/%PLUGIN_ID%/one",
-      "role": "Admin",
+      "role": "Viewer",
       "addToNav": true,
       "defaultNav": true
     },
@@ -30,7 +30,7 @@
       "type": "page",
       "name": "AI Agent",
       "path": "/a/%PLUGIN_ID%/ai-agent",
-      "role": "Admin", 
+      "role": "Viewer", 
       "addToNav": true,
       "defaultNav": false
     },
@@ -39,7 +39,7 @@
       "icon": "cog",
       "name": "Configuration",
       "path": "/plugins/%PLUGIN_ID%",
-      "role": "Admin",
+      "role": "Viewer",
       "addToNav": true
     }
   ],
