@@ -553,17 +553,24 @@ class ROS2Manager:
             if client.wait_for_service(timeout_sec=poll):
                 return
             if not rclpy.ok():
-                raise RuntimeError("ROS shutdown podczas oczekiwania na serwis.")
+                raise RuntimeError("ROS shutdown while waiting for service.")
         raise TimeoutError(f"Service {service_name} not available (timed out after {service_timeout}s).")
 
     def _wait_call_or_timeout(self, node: Node, future, service_name: str, call_timeout: float):
-        rclpy.spin_until_future_complete(node, future, timeout_sec=call_timeout)
-        if not future.done():
-            raise TimeoutError(f"No response from {service_name} within {call_timeout}s.")
-        response = future.result()
-        if response is None:
-            raise RuntimeError(f"Service {service_name} returned no response.")
-        return response
+        """
+        Wait for a future to complete using the executor that's already spinning.
+        This allows multiple service calls to work concurrently without blocking the node.
+        """
+        deadline = time.monotonic() + call_timeout
+        while time.monotonic() < deadline:
+            if future.done():
+                response = future.result()
+                if response is None:
+                    raise RuntimeError(f"Service {service_name} returned no response.")
+                return response
+            if not rclpy.ok():
+                raise RuntimeError("ROS shutdown while waiting for service response.")
+        raise TimeoutError(f"No response from {service_name} within {call_timeout}s.")
 
 
 

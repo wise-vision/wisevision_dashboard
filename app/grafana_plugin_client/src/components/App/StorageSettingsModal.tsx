@@ -369,7 +369,40 @@ const StorageSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
   // START
   if (screen === 'start') {
     const bucketOptions = buckets.map((b) => ({ value: b, label: b }));
-    const topicOptions = allTopics.map((t) => ({ value: t, label: t }));
+    
+    // Combine all topics and mark those already recording
+    const topicOptions = allTopics.map((t) => {
+      const isRecording = currentlyRecordingTopics.includes(t);
+      return {
+        value: t,
+        label: t,
+        isRecording,
+        isDisabled: isRecording,
+      };
+    });
+
+    // Custom option renderer with badge
+    const formatOptionLabel = (option: any) => (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span>{option.label}</span>
+        {option.isRecording && (
+          <span
+            style={{
+              marginLeft: '8px',
+              padding: '2px 8px',
+              borderRadius: '12px',
+              backgroundColor: '#28a745',
+              color: 'white',
+              fontSize: '11px',
+              fontWeight: '600',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Already recording
+          </span>
+        )}
+      </div>
+    );
 
     return (
       <div className={`create-action-modal ${isClosing ? 'closing' : ''}`}>
@@ -401,6 +434,8 @@ const StorageSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 onChange={(selected) => setSelectedTopics((selected || []).map((o: any) => o.value))}
                 placeholder="Select topics..."
                 closeMenuOnSelect={false}
+                isOptionDisabled={(option: any) => option.isDisabled}
+                formatOptionLabel={formatOptionLabel}
               />
             </div>
 
