@@ -309,6 +309,19 @@ def get_currently_playing_topics():
         }), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    
+
+@messages_api.route('/get_pending_recording_topics', methods=['GET'])
+def get_pending_recording_topics():
+    try:
+        response = ros2_manager.call_get_pending_recording_topics_service()
+        return jsonify({
+            'success': response.success,
+            'topics': list(response.topics),
+            'error_message': response.error_message
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @messages_api.route('/topic_echo/<path:topic_name>', methods=['GET'])

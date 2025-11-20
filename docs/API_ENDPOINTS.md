@@ -28,5 +28,7 @@
 | `/api/get_recorded_bags_by_topic` | Get list of recorded sessions (bags) for a given topic | POST | `topic_name` [string] | `{ success: bool, topic_name: string, bucket_names: [string], record_ids: [string], end_time_stamps: [string], error: string }` |
 | `/api/get_messages` | Get recorded ROS 2 messages from InfluxDB | POST | `topic_name` [string], `bucket_name` [string], optional: `time_start` [FullDateTime or ISO-8601], `time_end` [FullDateTime or ISO-8601], `number_of_msgs` [int] | `{ success: bool, messages: [base64 string], timestamps: [string], message_type: string, error_message: string }` |
 | `/api/play_recordings` | Replay (publish) recorded topics from InfluxDB | POST | `bucket_name` [string], `topic_names` [array of string], `record_ids` [array of string, same length as topic_names] | `{ success: bool, error: string }` |
+| `/api/get_pending_recording_topics` | Get list of topics currently pending recording | GET | None | `{ success: bool, topics: [string], error_message: string }` |
+
 
 **Note:** For endpoints with `:topic_name` containing `/`, replace `/` with `%`.

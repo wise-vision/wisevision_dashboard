@@ -63,52 +63,6 @@ class ROS2Manager:
         finally:
             self.shutdown()
 
-    # def parse_iso8601_to_fulldatetime(self, value):
-    #     FullDateTime = get_message('lora_msgs/msg/FullDateTime')
-    #     if not value:
-    #         return FullDateTime(year=0, month=0, day=0, hour=0, minute=0, second=0, nanosecond=0)
-
-    #     if isinstance(value, FullDateTime):
-    #         return value
-
-    #     if isinstance(value, dict):
-    #         return FullDateTime(
-    #             year=int(value.get("year", 0)),
-    #             month=int(value.get("month", 0)),
-    #             day=int(value.get("day", 0)),
-    #             hour=int(value.get("hour", 0)),
-    #             minute=int(value.get("minute", 0)),
-    #             second=int(value.get("second", 0)),
-    #             nanosecond=int(value.get("nanosecond", 0)),
-    #         )
-
-    #     if isinstance(value, (int, float)):
-    #         dt = datetime.fromtimestamp(value, tz=timezone.utc)
-    #     elif isinstance(value, str):
-    #         s = value.strip()
-    #         if s.endswith("Z"):
-    #             s = s[:-1] + "+00:00"
-    #         try:
-    #             dt = datetime.fromisoformat(s)
-    #         except Exception as e:
-    #             raise ValueError(f"Invalid ISO-8601 time: {value}") from e
-    #         if dt.tzinfo is None:
-    #             dt = dt.replace(tzinfo=timezone.utc)
-    #         dt = dt.astimezone(timezone.utc)
-    #     else:
-    #         raise TypeError(f"Unsupported time type: {type(value)}")
-
-    #     return FullDateTime(
-    #         year=dt.year,
-    #         month=dt.month,
-    #         day=dt.day,
-    #         hour=dt.hour,
-    #         minute=dt.minute,
-    #         second=dt.second,
-    #         nanosec=dt.microsecond * 1000,
-    #     )
-
-
     def filter_topics(self, topics, default_filter=True, message_types=None, message_namespaces=None, name_contains=None):
         if message_types is None:
             message_types = []
@@ -545,7 +499,7 @@ class ROS2Manager:
         return response.success if response else False
     # END OF: GPS Devices services
 
-    # Blackbox services
+    # wisevision_influxdb_ros2 services
 
     def _wait_service_or_timeout(self, node: Node, client, service_name: str, service_timeout: float, poll: float = 0.25):
         deadline = time.monotonic() + service_timeout
@@ -696,8 +650,6 @@ class ROS2Manager:
         future = client.call_async(request)
         response = self._wait_call_or_timeout(self.node, future, service_name, call_timeout)
 
-        # --- KONWERSJE ---
-        # record_ids może zawierać FullDateTime – zamień tylko takie elementy
         record_ids_raw = list(getattr(response, "record_ids", []))
         record_ids = [
             FDT.to_iso8601(x) if (hasattr(x, "year") and hasattr(x, "month") and (hasattr(x, "nanosecond") or hasattr(x, "nanosec")))
@@ -829,7 +781,24 @@ class ROS2Manager:
         future = client.call_async(request)
         return self._wait_call_or_timeout(self.node, future, service_name, call_timeout)
     
-    # END OF: Blackbox services
+    def call_get_pending_recording_topics_service(self, service_timeout: float = 5.0, call_timeout: float = 10.0):
+        """
+        returns: full response (response.success, response.topics, response.error_message)
+        """
+        service_name = '/get_pending_recording_topics'
+        service_type = get_service('wisevision_msgs/srv/InfluxGetPendingRecordingTopics')
+        if not service_type:
+            raise ImportError("Service type not found for 'InfluxGetPendingRecordingTopics'")
+
+        client = self.node.create_client(service_type, service_name)
+        self._wait_service_or_timeout(self.node, client, service_name, service_timeout)
+
+        request = service_type.Request()
+        future = client.call_async(request)
+        return self._wait_call_or_timeout(self.node, future, service_name, call_timeout)
+    
+    
+    # END OF: wisevision_influxdb_ros2 services
 
     def get_topic_message_type(self, topic_name):
         topics = self.node.get_topic_names_and_types()
