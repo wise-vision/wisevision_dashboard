@@ -79,18 +79,6 @@ export const AppConfig: React.FC<AppConfigProps> = ({ plugin }) => {
     <div style={{ maxWidth: 640 }}>
       <h3>Connection</h3>
       
-      <div style={{ background: '#f5f5f5', padding: '10px', marginBottom: '20px', fontFamily: 'monospace' }}>
-        Debug: Current jsonData = {JSON.stringify(jsonData, null, 2)}
-        <br />
-        Current API URL = {currentApiUrl}
-        <br />
-        Current AI Agent URL = {currentApiUrlAgent}
-        <br />
-        OpenAI API Key = ✅ Configured via environment variable
-      </div>
-
-
-
       <Field label="API URL (jsonData.apiUrl)" description="Main backend API server - change this and click Save to update">
         <Input
           name="jsonData.apiUrl"
@@ -117,7 +105,7 @@ export const AppConfig: React.FC<AppConfigProps> = ({ plugin }) => {
         />
       </Field>
 
-      <Field label="API Key (secureJsonData.apiKey)" description="Opcjonalnie — bearer token">
+      <Field label="API Key (secureJsonData.apiKey)" description="Optional — bearer token">
         <SecretInput
           name="secureJsonData.apiKey"
           placeholder="••••••••"

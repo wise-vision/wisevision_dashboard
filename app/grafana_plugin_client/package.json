@@ -1,7 +1,7 @@
 {
   "name": "wise-os-app",
   "version": "1.0.0",
-  "description": "Wise os controller",
+  "description": "WiseOS - Manage ROS 2. Control data collection, archive topics, replay recorded sessions, and leverage AI agent for intelligent automation",
   "scripts": {
     "build": "webpack -c ./.config/webpack/webpack.config.ts --env production",
     "dev": "webpack -w -c ./.config/webpack/webpack.config.ts --env development",

@@ -30,13 +30,13 @@ async function httpPost<T = any>(url: string, body: any) {
 type Props = { isOpen: boolean; onClose?: () => void };
 
 const StorageSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
-  const [isClosing, setIsClosing] = useState(false);
   const [screen, setScreen] = useState<null | 'create' | 'start' | 'stop' | 'play' | 'stopPlaying'>(null);
   const [message, setMessage] = useState('');
 
   const [buckets, setBuckets] = useState<string[]>([]);
   const [recordedTopics, setRecordedTopics] = useState<string[]>([]);
   const [currentlyRecordingTopics, setCurrentlyRecordingTopics] = useState<string[]>([]);
+  const [pendingRecordingTopics, setPendingRecordingTopics] = useState<string[]>([]);
 
   const [bucketName, setBucketName] = useState('');
   const [retentionDays, setRetentionDays] = useState<number | string>(7);
@@ -54,14 +54,6 @@ const StorageSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const [playTopic, setPlayTopic] = useState('');
   const [playSessions, setPlaySessions] = useState<Array<{ record_id: string; bucket_name: string; label: string }>>([]);
   const [playRecordId, setPlayRecordId] = useState('');
-
-  const handleCancel = () => {
-    setIsClosing(true);
-    setTimeout(() => {
-      setIsClosing(false);
-      onClose?.();
-    }, 600);
-  };
 
   // --- LOADERS ---
   const fetchBuckets = useCallback(async () => {
@@ -102,6 +94,18 @@ const StorageSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
     } catch (e) {
       console.error(e);
       setMessage('Network error while loading currently recording topics.');
+    }
+  }, []);
+
+  const fetchPendingRecordingTopics = useCallback(async () => {
+    try {
+      const j: any = await httpGet(api('/api/get_pending_recording_topics'));
+      const ok = j.success ?? !j.error_message;
+      if (ok) {setPendingRecordingTopics(j.topics || []);}
+      else {setMessage(j.error_message || 'Failed to load pending recording topics.');}
+    } catch (e) {
+      console.error(e);
+      setMessage('Network error while loading pending recording topics.');
     }
   }, []);
 
@@ -148,6 +152,7 @@ const StorageSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
       fetchBuckets();
       fetchRecordedTopics();
       fetchCurrentlyRecordingTopics();
+      fetchPendingRecordingTopics();
       fetchCurrentlyPlayingTopics();
       // reset
       setSelectedTopics([]);
@@ -160,7 +165,7 @@ const StorageSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
       // Modal is closing
       setWasOpen(false);
     }
-  }, [isOpen, wasOpen, fetchBuckets, fetchRecordedTopics, fetchCurrentlyRecordingTopics, fetchCurrentlyPlayingTopics]);
+  }, [isOpen, wasOpen, fetchBuckets, fetchRecordedTopics, fetchCurrentlyRecordingTopics, fetchPendingRecordingTopics, fetchCurrentlyPlayingTopics]);
 
   // sessions for play
   useEffect(() => {
@@ -194,7 +199,9 @@ const StorageSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
     if (!isOpen || screen !== 'start') {return;}
     fetchBuckets();
     fetchRosTopics();
-  }, [isOpen, screen, fetchBuckets, fetchRosTopics]);
+    fetchCurrentlyRecordingTopics();
+    fetchPendingRecordingTopics();
+  }, [isOpen, screen, fetchBuckets, fetchRosTopics, fetchCurrentlyRecordingTopics, fetchPendingRecordingTopics]);
 
   useEffect(() => {
     if (!isOpen || screen !== 'stop') {return;}
@@ -207,7 +214,7 @@ const StorageSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
     fetchCurrentlyPlayingTopics();
   }, [isOpen, screen, fetchCurrentlyPlayingTopics]);
 
-  if (!isOpen && !isClosing) {return null;}
+  if (!isOpen) {return null;}
 
   const handleCreateBucket = async () => {
     setMessage('');
@@ -219,19 +226,19 @@ const StorageSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
       });
       const ok = j.success ?? !j.error_message;
       if (ok) {
-        setMessage('✅ Bucket created.');
+        setMessage('Bucket created');
         setBucketName('');
         setBucketDesc('');
         fetchBuckets();
-      } else {setMessage(`❌ ${j.error_message || 'Create bucket failed.'}`);}
+      } else {setMessage(j.error_message || 'Create bucket failed');}
     } catch {
-      setMessage('❌ Network error while creating bucket.');
+      setMessage('Network error while creating bucket');
     }
   };
 
   const handleStartRecording = async () => {
     if (!startBucket || selectedTopics.length === 0) {
-      setMessage('Select bucket and at least one topic.');
+      setMessage('Select bucket and at least one topic');
       return;
     }
     setMessage('');
@@ -242,19 +249,20 @@ const StorageSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
       });
       const ok = j.success ?? !j.error;
       if (ok) {
-        setMessage('✅ Recording started.');
+        setMessage('Recording started');
         setSelectedTopics([]);
         fetchRecordedTopics();
         fetchCurrentlyRecordingTopics();
-      } else {setMessage('❌ Start recording failed.');}
+        fetchPendingRecordingTopics();
+      } else {setMessage('Start recording failed');}
     } catch {
-      setMessage('❌ Network error while starting recording.');
+      setMessage('Network error while starting recording');
     }
   };
 
   const handleStopRecording = async () => {
     if (stopTopics.length === 0) {
-      setMessage('Select at least one topic to stop.');
+      setMessage('Select at least one topic to stop');
       return;
     }
     setMessage('');
@@ -262,19 +270,20 @@ const StorageSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
       const j: any = await httpPost(api('/api/stop_record_topics'), { topics_names: stopTopics });
       const ok = j.success ?? !j.error;
       if (ok) {
-        setMessage('🛑 Recording stopped.');
+        setMessage('Recording stopped');
         setStopTopics([]);
         fetchRecordedTopics();
         fetchCurrentlyRecordingTopics();
-      } else {setMessage(`❌ ${j.error || 'Stop recording failed.'}`);}
+        fetchPendingRecordingTopics();
+      } else {setMessage(j.error || 'Stop recording failed');}
     } catch {
-      setMessage('❌ Network error while stopping recording.');
+      setMessage('Network error while stopping recording');
     }
   };
 
   const handleStopPlaying = async () => {
     if (stopPlayingTopics.length === 0) {
-      setMessage('Select at least one topic to stop playback.');
+      setMessage('Select at least one topic to stop playback');
       return;
     }
     setMessage('');
@@ -282,19 +291,19 @@ const StorageSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
       const j: any = await httpPost(api('/api/stop_playing_topics'), { topics_names: stopPlayingTopics });
       const ok = j.success ?? !j.error;
       if (ok) {
-        setMessage('⏹️ Playback stopped.');
+        setMessage('Playback stopped');
         setStopPlayingTopics([]);
         fetchCurrentlyPlayingTopics();
-      } else {setMessage(`❌ ${j.error || 'Stop playback failed.'}`);}
+      } else {setMessage(j.error || 'Stop playback failed');}
     } catch {
-      setMessage('❌ Network error while stopping playback.');
+      setMessage('Network error while stopping playback');
     }
   };
 
   const handlePlayRecording = async () => {
     const sess = playSessions.find((s) => s.record_id === playRecordId);
     if (!playTopic || !sess) {
-      setMessage('Select topic and session to play.');
+      setMessage('Select topic and session to play');
       return;
     }
     setMessage('');
@@ -305,10 +314,10 @@ const StorageSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
         record_ids: [sess.record_id],
       });
       const ok = j.success ?? !j.error;
-      if (ok) {setMessage('▶️ Playback started.');}
-      else {setMessage(`❌ ${j.error || 'Playback failed.'}`);}
+      if (ok) {setMessage('Playback started');}
+      else {setMessage(j.error || 'Playback failed');}
     } catch {
-      setMessage('❌ Network error while starting playback.');
+      setMessage('Network error while starting playback');
     }
   };
 
@@ -317,8 +326,8 @@ const StorageSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
   // MENU
   if (screen === null) {
     return (
-      <div className={`storage-modal ${isClosing ? 'closing' : ''}`}>
-        <div className={`storage-content ${isClosing ? 'closing' : ''}`}>
+      <div className="storage-modal">
+        <div className="storage-content">
           <h2 className="storage-title">Storage settings</h2>
 
           <div className="storage-menu">
@@ -328,8 +337,6 @@ const StorageSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
             <button onClick={() => setScreen('play')} className="storage-btn">Play recorded topic</button>
             <button onClick={() => setScreen('stopPlaying')} className="storage-btn">Stop playing topic</button>
           </div>
-
-          {message && <div className="storage-msg">{message}</div>}
         </div>
       </div>
     );
@@ -338,10 +345,17 @@ const StorageSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
   // CREATE
   if (screen === 'create') {
     return (
-      <div className={`create-action-modal ${isClosing ? 'closing' : ''}`}>
-        <div className={`modal-content ${isClosing ? 'closing' : ''}`}>
+      <div className="create-action-modal">
+        <div className="modal-content">
           <h2>Create bucket</h2>
-          {message && <div className="message">{message}</div>}
+          {message && (
+            <div className={`message ${
+              message.includes('created') || message.includes('started') || message.includes('stopped') ? 'success' :
+              message.includes('failed') || message.includes('error') || message.includes('Error') ? 'error' : ''
+            }`}>
+              {message}
+            </div>
+          )}
           <form className="new-action-form" onSubmit={(e) => e.preventDefault()}>
             <div className="form-group">
               <label>Bucket name:</label>
@@ -357,8 +371,7 @@ const StorageSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
             </div>
             <div className="modal-actions">
               <button type="button" className="add-button" onClick={handleCreateBucket}>Create</button>
-              <button type="button" onClick={handleCancel} className="close-button">Cancel</button>
-              <button type="button" onClick={() => setScreen(null)} className="back-button">Back</button>
+              <button type="button" onClick={() => { setScreen(null); setMessage(''); }} className="back-button">Back</button>
             </div>
           </form>
         </div>
@@ -370,14 +383,20 @@ const StorageSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
   if (screen === 'start') {
     const bucketOptions = buckets.map((b) => ({ value: b, label: b }));
     
-    // Combine all topics and mark those already recording
-    const topicOptions = allTopics.map((t) => {
+    // Merge all topics with pending topics (in case pending topics aren't in ROS topic list yet)
+    const allTopicsSet = new Set([...allTopics, ...pendingRecordingTopics]);
+    const mergedTopics = Array.from(allTopicsSet);
+    
+    // Combine all topics and mark those already recording or pending
+    const topicOptions = mergedTopics.map((t) => {
       const isRecording = currentlyRecordingTopics.includes(t);
+      const isPending = pendingRecordingTopics.includes(t);
       return {
         value: t,
         label: t,
         isRecording,
-        isDisabled: isRecording,
+        isPending,
+        isDisabled: isRecording || isPending,
       };
     });
 
@@ -401,14 +420,37 @@ const StorageSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
             Already recording
           </span>
         )}
+        {option.isPending && (
+          <span
+            style={{
+              marginLeft: '8px',
+              padding: '2px 8px',
+              borderRadius: '12px',
+              backgroundColor: '#ffc107',
+              color: '#000',
+              fontSize: '11px',
+              fontWeight: '600',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Pending recording
+          </span>
+        )}
       </div>
     );
 
     return (
-      <div className={`create-action-modal ${isClosing ? 'closing' : ''}`}>
-        <div className={`modal-content ${isClosing ? 'closing' : ''}`}>
+      <div className="create-action-modal">
+        <div className="modal-content">
           <h2>Start recording topics</h2>
-          {message && <div className="message">{message}</div>}
+          {message && (
+            <div className={`message ${
+              message.includes('created') || message.includes('started') || message.includes('stopped') ? 'success' :
+              message.includes('failed') || message.includes('error') || message.includes('Error') ? 'error' : ''
+            }`}>
+              {message}
+            </div>
+          )}
           <form className="new-action-form" onSubmit={(e) => e.preventDefault()}>
             <div className="form-group">
               <label>Bucket:</label>
@@ -440,9 +482,14 @@ const StorageSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
             </div>
 
             <div className="modal-actions">
-              <button type="button" className="add-button" onClick={handleStartRecording}>Start</button>
-              <button type="button" onClick={handleCancel} className="close-button">Cancel</button>
-              <button type="button" onClick={() => setScreen(null)} className="back-button">Back</button>
+              <button 
+                type="button" 
+                className="add-button" 
+                onClick={handleStartRecording}
+              >
+                Start
+              </button>
+              <button type="button" onClick={() => { setScreen(null); setMessage(''); }} className="back-button">Back</button>
             </div>
           </form>
         </div>
@@ -455,10 +502,17 @@ const StorageSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
     const currentlyRecordingOptions = currentlyRecordingTopics.map((t) => ({ value: t, label: t }));
 
     return (
-      <div className={`create-action-modal ${isClosing ? 'closing' : ''}`}>
-        <div className={`modal-content ${isClosing ? 'closing' : ''}`}>
+      <div className="create-action-modal">
+        <div className="modal-content">
           <h2>Stop recording topic</h2>
-          {message && <div className="message">{message}</div>}
+          {message && (
+            <div className={`message ${
+              message.includes('created') || message.includes('started') || message.includes('stopped') ? 'success' :
+              message.includes('failed') || message.includes('error') || message.includes('Error') ? 'error' : ''
+            }`}>
+              {message}
+            </div>
+          )}
           <form className="new-action-form" onSubmit={(e) => e.preventDefault()}>
             <div className="form-group">
               <label>Currently recording topics:</label>
@@ -483,8 +537,7 @@ const StorageSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
               >
                 Stop
               </button>
-              <button type="button" onClick={handleCancel} className="close-button">Cancel</button>
-              <button type="button" onClick={() => setScreen(null)} className="back-button">Back</button>
+              <button type="button" onClick={() => { setScreen(null); setMessage(''); }} className="back-button">Back</button>
             </div>
           </form>
         </div>
@@ -497,10 +550,17 @@ const StorageSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
     const currentlyPlayingOptions = currentlyPlayingTopics.map((t) => ({ value: t, label: t }));
 
     return (
-      <div className={`create-action-modal ${isClosing ? 'closing' : ''}`}>
-        <div className={`modal-content ${isClosing ? 'closing' : ''}`}>
+      <div className="create-action-modal">
+        <div className="modal-content">
           <h2>Stop playing topic</h2>
-          {message && <div className="message">{message}</div>}
+          {message && (
+            <div className={`message ${
+              message.includes('created') || message.includes('started') || message.includes('stopped') ? 'success' :
+              message.includes('failed') || message.includes('error') || message.includes('Error') ? 'error' : ''
+            }`}>
+              {message}
+            </div>
+          )}
           <form className="new-action-form" onSubmit={(e) => e.preventDefault()}>
             <div className="form-group">
               <label>Currently playing topics:</label>
@@ -525,8 +585,7 @@ const StorageSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
               >
                 Stop Playing
               </button>
-              <button type="button" onClick={handleCancel} className="close-button">Cancel</button>
-              <button type="button" onClick={() => setScreen(null)} className="back-button">Back</button>
+              <button type="button" onClick={() => { setScreen(null); setMessage(''); }} className="back-button">Back</button>
             </div>
           </form>
         </div>
@@ -540,10 +599,17 @@ const StorageSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
     const sessionOptions = playSessions.map((s) => ({ value: s.record_id, label: `${s.label} – ${s.bucket_name}` }));
 
     return (
-      <div className={`create-action-modal ${isClosing ? 'closing' : ''}`}>
-        <div className={`modal-content ${isClosing ? 'closing' : ''}`}>
+      <div className="create-action-modal">
+        <div className="modal-content">
           <h2>Play recorded topic</h2>
-          {message && <div className="message">{message}</div>}
+          {message && (
+            <div className={`message ${
+              message.includes('created') || message.includes('started') || message.includes('stopped') ? 'success' :
+              message.includes('failed') || message.includes('error') || message.includes('Error') ? 'error' : ''
+            }`}>
+              {message}
+            </div>
+          )}
           <form className="new-action-form" onSubmit={(e) => e.preventDefault()}>
             <div className="form-group">
               <label>Topic:</label>
@@ -575,8 +641,7 @@ const StorageSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
               <button type="button" className="add-button" disabled={!playTopic || !playRecordId} onClick={handlePlayRecording}>
                 Play
               </button>
-              <button type="button" onClick={handleCancel} className="close-button">Cancel</button>
-              <button type="button" onClick={() => setScreen(null)} className="back-button">Back</button>
+              <button type="button" onClick={() => { setScreen(null); setMessage(''); }} className="back-button">Back</button>
             </div>
           </form>
         </div>

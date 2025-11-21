@@ -1,13 +1,13 @@
 {
   "$schema": "https://raw.githubusercontent.com/grafana/grafana/master/docs/sources/developers/plugins/plugin.schema.json",
   "type": "app",
-  "name": "Wise Os App",
+  "name": "WiseOS",
   "id": "wisevision-wiseos-app",
   "info": {
-    "keywords": ["app"],
-    "description": "Wise os controller",
+    "keywords": ["app", "storage", "recording", "influxdb", "ros2", "data-management", "ai-agent"],
+    "description": "WiseOS — The AI-Powered Control Hub for ROS 2",
     "author": {
-      "name": "Wise vision"
+      "name": "WiseVision"
     },
     "logos": {
       "small": "img/logo.png",

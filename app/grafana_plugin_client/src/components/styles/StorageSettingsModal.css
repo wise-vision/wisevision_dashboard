@@ -16,7 +16,7 @@
   --primary-600: #2563eb;
   --primary-700: #1d4ed8;
   
-  --success-500: #10b981;
+  --success-500: rgb(16, 185, 129);
   --success-600: #059669;
   
   --danger-500: #ef4444;
@@ -156,20 +156,52 @@ h2 {
   background: linear-gradient(135deg, var(--success-600), var(--success-500));
   box-shadow: var(--shadow-md);
   color: white;
+  transition: all 0.15s ease;
 }
 
-.add-button:hover {
-  background: linear-gradient(135deg, var(--success-700), var(--success-600));
+.add-button:hover:not(:disabled) {
+  background: rgba(0, 255, 94, 0.519);
   box-shadow: var(--shadow-lg);
   transform: translateY(-1px);
 }
 
-.add-button:disabled {
-  background: var(--gray-600);
-  cursor: not-allowed;
-  opacity: 0.6;
-  transform: none;
+.add-button:disabled,
+.add-button[disabled] {
+  background: linear-gradient(135deg, var(--success-600), var(--success-500));
   box-shadow: var(--shadow-sm);
+  cursor: not-allowed;
+  opacity: 0.9;
+  filter: brightness(0.95);
+  transform: none;
+}
+
+.add-button:disabled:hover,
+.add-button[disabled]:hover {
+  background: linear-gradient(135deg, var(--success-600), var(--success-500));
+  box-shadow: var(--shadow-sm);
+  opacity: 0.9;
+  filter: brightness(0.95);
+  transform: none;
+}
+
+.add-button[style*="ff625a"] {
+  background: linear-gradient(135deg, var(--danger-600), var(--danger-500)) !important;
+}
+
+.add-button[style*="ff625a"]:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--danger-700), var(--danger-600)) !important;
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-1px);
+}
+
+.add-button[style*="ff8c42"] {
+  background: linear-gradient(135deg, var(--warning-600), var(--warning-500)) !important;
+}
+
+.add-button[style*="ff8c42"]:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--warning-700), var(--warning-600)) !important;
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-1px);
 }
 
 .close-button {
@@ -204,8 +236,29 @@ h2 {
   border-radius: var(--radius-md);
   font-size: 14px;
   font-weight: 500;
+  border: 1px solid;
+  text-align: center;
+}
+
+/* Success messages - green */
+.message.success {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: var(--success-600);
+  color: var(--success-500);
+}
+
+/* Error messages - red */
+.message.error {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: var(--danger-600);
+  color: var(--danger-500);
+}
+
+/* Default/neutral messages */
+.message:not(.success):not(.error),
+.storage-msg {
   background: var(--surface-dark-secondary);
-  border: 1px solid var(--surface-dark-tertiary);
+  border-color: var(--surface-dark-tertiary);
   color: var(--gray-200);
 }
 

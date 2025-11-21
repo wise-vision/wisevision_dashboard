@@ -28,7 +28,7 @@ export const PageOne: React.FC = () => {
           }} 
         />
         <div style={{ marginLeft: '20px' }}>
-          <h2 style={{ marginBottom: '8px', marginTop: 0 }}>WiseOS Application</h2>
+          <h2 style={{ marginBottom: '8px', marginTop: 0 }}>WiseOS storage settings</h2>
           <p style={{ margin: 0, color: '#666', marginBottom: '16px' }}>
             Manage storage settings.
           </p>
