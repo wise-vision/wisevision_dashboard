@@ -16,6 +16,7 @@ services:
     depends_on:
       panel-build:
         condition: service_completed_successfully
+    restart: unless-stopped
 
 volumes:
   grafana-storage:

@@ -17,3 +17,4 @@ services:
     tty: true
     environment:
       FLASK_ENV: debug
+    restart: unless-stopped
