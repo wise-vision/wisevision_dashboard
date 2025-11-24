@@ -6,12 +6,9 @@ services:
       dockerfile: Dockerfile
     network_mode: host
     environment:
-      - GF_DEFAULT_APP_MODE=development
       - GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=wisevision-wiseos-app,wisevision-wiseosvisualization-panel
-      - GF_LOG_LEVEL=debug
-      - GF_LOG_MODE=console
     volumes:
-      - grafana-storage:/var/lib/grafana
+      - grafana-storage:/var/lib/grafana-data
       - grafana-panel-b:/var/lib/grafana/plugins/wisevision-wiseosvisualization-panel:ro
     depends_on:
       panel-build:

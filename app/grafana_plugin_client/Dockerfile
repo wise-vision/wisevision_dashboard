@@ -13,9 +13,10 @@ COPY --from=builder /usr/src/app/dist /var/lib/grafana/plugins/wisevision-wiseos
 
 COPY provisioning /etc/grafana/provisioning
 
-ENV GF_DEFAULT_APP_MODE=development \
+ENV GF_DEFAULT_APP_MODE=production \
     GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=wisevision-wiseos-app \
-    GF_LOG_LEVEL=debug \
-    GF_LOG_MODE=console
+    GF_LOG_LEVEL=info \
+    GF_LOG_MODE=console \
+    GF_PATHS_DATA=/var/lib/grafana-data
 
 EXPOSE 3000
