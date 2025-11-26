@@ -19,9 +19,7 @@ export const AppConfig: React.FC<AppConfigProps> = ({ plugin }) => {
   const meta = plugin.meta;
   const jsonData = (meta.jsonData ?? {}) as { apiUrl?: string; apiUrlAgent?: string };
 
-  console.log('AppConfig rendered with jsonData:', jsonData);
-
-  // State to track the current input values
+  // State to track the current input values - values from database are passed via plugin.meta.jsonData
   const [currentApiUrl, setCurrentApiUrl] = useState(jsonData.apiUrl ?? '');
   const [currentApiUrlAgent, setCurrentApiUrlAgent] = useState(jsonData.apiUrlAgent ?? '');
   const [isLoading, setIsLoading] = useState(false);
