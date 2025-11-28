@@ -10,6 +10,7 @@ services:
     volumes:
       - grafana-storage:/var/lib/grafana
       - grafana-panel-b:/var/lib/grafana/plugins/wisevision-wiseosvisualization-panel
+      - grafana-data-source:/var/lib/grafana/plugins/wisevision-wiseosdatasource-datasource
     depends_on:
       panel-source:
         condition: service_completed_successfully
@@ -20,3 +21,4 @@ services:
 volumes:
   grafana-storage:
   grafana-panel-b:
+  grafana-data-source:
