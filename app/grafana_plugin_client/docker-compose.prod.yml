@@ -6,12 +6,14 @@ services:
       dockerfile: Dockerfile
     network_mode: host
     environment:
-      - GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=wisevision-wiseos-app,wisevision-wiseosvisualization-panel
+      - GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=wisevision-wiseos-app,wisevision-wiseosvisualization-panel,wisevision-wiseosdatasource-datasource
     volumes:
       - grafana-storage:/var/lib/grafana
       - grafana-panel-b:/var/lib/grafana/plugins/wisevision-wiseosvisualization-panel
     depends_on:
       panel-source:
+        condition: service_completed_successfully
+      data-source:
         condition: service_completed_successfully
     restart: unless-stopped
 
