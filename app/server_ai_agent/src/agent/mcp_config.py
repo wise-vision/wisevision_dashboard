@@ -9,19 +9,19 @@
 #
 
 import os
-from typing import Dict, List, Union
+from typing import Union
 from typing_extensions import TypedDict, Literal
 
 class StdioConnection(TypedDict):
     command: str
-    args: List[str]
+    args: list[str]
     transport: Literal["stdio"]
 
 class SSEConnection(TypedDict):
     url: str
     transport: Literal["sse"]
 
-MCPConfig = Dict[str, Union[StdioConnection, SSEConnection]]
+MCPConfig = dict[str, Union[StdioConnection, SSEConnection]]
 
 DEFAULT_MCP_CONFIG: MCPConfig = {
     "ros2": {

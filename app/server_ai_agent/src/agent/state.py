@@ -8,11 +8,10 @@
 #  file, You can obtain one at https://mozilla.org/MPL/2.0/.
 #
 
-from typing import Optional, Dict, Any, List
+from typing import Optional, Any
 from typing_extensions import TypedDict
-# from copilotkit import CopilotKitState  # jeżeli nie używasz, możesz rozszerzyć zwykły TypedDict
 
 class AgentState(TypedDict):
-    messages: List[Dict[str, Any]]
-    mcp_config: Optional[Dict[str, Any]]
+    messages: list[dict[str, Any]]
+    mcp_config: Optional[dict[str, Any]]
     openai_api_key: Optional[str]

@@ -15,7 +15,7 @@ Utility helpers for converting between lora_msgs/msg/FullDateTime and common for
 
 from __future__ import annotations
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Union
+from typing import Any, Union
 
 try:
     # Preferred in ROS 2
@@ -25,7 +25,7 @@ except Exception:  # pragma: no cover
     from rclpy.type_support import get_message  # type: ignore
 
 
-Jsonable = Union[None, bool, int, float, str, List["Jsonable"], Dict[str, "Jsonable"]]
+Jsonable = Union[None, bool, int, float, str, list["Jsonable"], dict[str, "Jsonable"]]
 
 
 def _get_nanos(obj: Any) -> int:

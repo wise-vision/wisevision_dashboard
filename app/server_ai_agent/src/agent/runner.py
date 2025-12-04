@@ -8,8 +8,7 @@
 #  file, You can obtain one at https://mozilla.org/MPL/2.0/.
 #
 
-# src/agent/runner.py
-from typing import Optional, Dict, Any, List
+from typing import Optional, Any
 from .graph import graph
 from .mcp_config import DEFAULT_MCP_CONFIG
 import os
@@ -18,8 +17,8 @@ def _default_thread_id() -> str:
     return os.environ.get("THREAD_ID", "local-test")
 
 async def run_graph(
-    messages: List[Dict[str, Any]],
-    mcp_config: Optional[Dict[str, Any]] = None,
+    messages: list[dict[str, Any]],
+    mcp_config: Optional[dict[str, Any]] = None,
     thread_id: Optional[str] = None,
     openai_api_key: Optional[str] = None,
 ):

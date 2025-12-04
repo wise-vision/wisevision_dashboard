@@ -9,7 +9,7 @@
 #
 
 import os
-from typing import Optional, Dict, Any
+from typing import Optional, Any
 from typing_extensions import Literal
 from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, END
@@ -21,8 +21,8 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 from .state import AgentState
 from .mcp_config import DEFAULT_MCP_CONFIG
 
-async def chat_node(state: AgentState, _config: Dict[str, Any] | None = None) -> Command[Literal["__end__"]]:
-    mcp_config: Optional[Dict[str, Any]] = state.get("mcp_config", DEFAULT_MCP_CONFIG)
+async def chat_node(state: AgentState, _config: dict[str, Any] | None = None) -> Command[Literal["__end__"]]:
+    mcp_config: Optional[dict[str, Any]] = state.get("mcp_config", DEFAULT_MCP_CONFIG)
     
     # Get API key from environment - try multiple sources
     api_key = (

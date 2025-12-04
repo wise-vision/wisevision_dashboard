@@ -7,7 +7,7 @@ name = "mcp-ai-bridge"
 version = "0.1.0"
 description = "MCP Agent with bridge"
 requires-python = ">=3.11,<3.13"
-license = { text = "MIT" }
+license = { text = "MPL-2.0" }
 
 dependencies = [
   "typing-extensions>=4.10",
