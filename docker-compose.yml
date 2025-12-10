@@ -9,6 +9,8 @@ services:
       dockerfile: app/server/Dockerfile
       args:
         ROS_DISTRO: jazzy
+    depends_on:
+     - zenoh-rmw-router
     ports:
       - '5000:5000'
     ipc: "host"
