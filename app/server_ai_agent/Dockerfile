@@ -37,8 +37,8 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
 # Verify UV installation
 RUN uv --version
 
-# Copy dependency files and README (required by pyproject.toml)
-COPY pyproject.toml uv.lock README.md ./
+# Copy dependency files (required by pyproject.toml)
+COPY pyproject.toml uv.lock ./
 
 # Install Python dependencies using UV
 RUN uv sync
