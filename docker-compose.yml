@@ -17,4 +17,5 @@ services:
     tty: true
     environment:
       FLASK_ENV: debug
+      RMW_IMPLEMENTATION: rmw_zenoh_cpp
     restart: unless-stopped
