@@ -15,7 +15,6 @@ services:
     pid: "host"
     stdin_open: true
     tty: true
-    network_mode: host
     environment:
       FLASK_ENV: debug
     restart: unless-stopped
