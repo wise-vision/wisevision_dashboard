@@ -129,6 +129,18 @@ class TestSessionManagement:
         
         assert id1 != id2
 
+    @patch("bridge.main.mcp_client_manager.close", new_callable=AsyncMock)
+    def test_delete_session_closes_mcp(self, mock_close, client):
+        """Test deleting a session triggers MCP cleanup"""
+        session_id = client.post("/session", json={}).json()["sessionId"]
+
+        response = client.delete(f"/session/{session_id}")
+
+        assert response.status_code == 200
+        assert response.json()["ok"] is True
+        mock_close.assert_awaited_once_with(session_id)
+        assert session_id not in sessions
+
 
 class TestSimpleChatEndpoint:
     """Tests for /simple-chat endpoint"""

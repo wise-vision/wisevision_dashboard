@@ -22,6 +22,7 @@ from pydantic import BaseModel
 from agent.runner import run_graph
 from agent.streaming_runner import stream_graph
 from agent.mcp_config import DEFAULT_MCP_CONFIG
+from agent.mcp_client_manager import mcp_client_manager
 from agent.user_mcp_config import load_user_mcp_config, save_user_mcp_config, merge_with_defaults
 from langchain_mcp_adapters.client import MultiServerMCPClient
 
@@ -91,6 +92,14 @@ async def create_session(body: CreateSessionBody):
     sessions[s.id] = s
     return {"sessionId": s.id}
 
+@app.delete("/session/{session_id}")
+async def delete_session(session_id: str):
+    s = sessions.pop(session_id, None)
+    if not s:
+        raise HTTPException(404, "Unknown session")
+    await mcp_client_manager.close(session_id)
+    return {"ok": True}
+
 @app.get("/events/{session_id}")
 async def events(session_id: str, request: Request):
     s = sessions.get(session_id)
@@ -98,11 +107,15 @@ async def events(session_id: str, request: Request):
         raise HTTPException(404, "Unknown session")
 
     async def gen():
-        while True:
-            if await request.is_disconnected():
-                break
-            evt = await s.queue.get()
-            yield f"data: {json.dumps(evt)}\n\n"
+        try:
+            while True:
+                if await request.is_disconnected():
+                    break
+                evt = await s.queue.get()
+                yield f"data: {json.dumps(evt)}\n\n"
+        finally:
+            sessions.pop(session_id, None)
+            await mcp_client_manager.close(session_id)
 
     headers = {
         "Content-Type": "text/event-stream",
@@ -117,9 +130,7 @@ async def tools_list(session_id: str):
     s = sessions.get(session_id)
     if not s:
         raise HTTPException(404, "Unknown session")
-    # Create client (no context manager in 0.1.0+)
-    mcp_client = MultiServerMCPClient(s.mcp_config)
-    tools = await mcp_client.get_tools()
+    tools = await mcp_client_manager.get_tools(session_id, s.mcp_config)
     return {"tools": [{"name": t.name, "description": t.description} for t in tools]}
 
 @app.get("/mcp/prompts/list")
@@ -290,7 +301,9 @@ async def chat(body: ChatBody):
     
     # Use session's OpenAI API key if provided, otherwise fall back to settings
     api_key = body.openai_api_key or s.openai_api_key or settings.openai_api_key
-    result = await run_graph(s.messages, mcp_config=s.mcp_config, openai_api_key=api_key)
+    result = await run_graph(
+        s.messages, mcp_config=s.mcp_config, thread_id=s.id, openai_api_key=api_key
+    )
     s.messages = result.get("messages", s.messages)
     
     # Find the last assistant message - handle both dict and LangChain message objects
@@ -314,6 +327,11 @@ async def chat(body: ChatBody):
     
     await s.queue.put({"type": "chat.assistant", "content": content})
     return JSONResponse({"ok": True})
+
+
+@app.on_event("shutdown")
+async def _shutdown_cleanup() -> None:
+    await mcp_client_manager.close_all()
 
 @app.post("/simple-chat")
 async def simple_chat(body: SimpleChatBody):
