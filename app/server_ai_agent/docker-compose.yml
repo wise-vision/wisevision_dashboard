@@ -41,11 +41,6 @@ services:
       - "com.wisevision.service=backend-agent"
       - "com.wisevision.description=AI Agent Backend Service"
 
-networks:
-  wisevision-network:
-    driver: bridge
-    name: wisevision-network
-
 volumes:
   agent-logs:
     driver: local
