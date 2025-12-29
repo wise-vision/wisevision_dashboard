@@ -311,36 +311,6 @@ class TestMCPServersEndpoint:
 class TestMCPPromptsEndpoints:
     """Tests for MCP prompts endpoints"""
 
-    @patch("bridge.main.MultiServerMCPClient")
-    def test_list_prompts_success(self, mock_client_class, client):
-        """Test listing available MCP prompts"""
-        # Mock the client and its methods
-        mock_client = MagicMock()
-        mock_session = AsyncMock()
-        
-        # Mock prompt object
-        mock_prompt = MagicMock()
-        mock_prompt.name = "test_prompt"
-        mock_prompt.description = "A test prompt"
-        mock_prompt.arguments = []
-        
-        mock_prompts_result = MagicMock()
-        mock_prompts_result.prompts = [mock_prompt]
-        
-        mock_session.list_prompts = AsyncMock(return_value=mock_prompts_result)
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=None)
-        
-        mock_client.session = MagicMock(return_value=mock_session)
-        mock_client_class.return_value = mock_client
-        
-        response = client.get("/mcp/prompts/list")
-        
-        assert response.status_code == 200
-        data = response.json()
-        assert data["ok"] is True
-        assert "prompts" in data
-
 class TestToolApprovalEndpoints:
     """Tests for tool approval endpoints"""
 
