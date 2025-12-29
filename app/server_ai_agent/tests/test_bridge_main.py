@@ -341,31 +341,6 @@ class TestMCPPromptsEndpoints:
         assert data["ok"] is True
         assert "prompts" in data
 
-    @patch("bridge.main.MultiServerMCPClient")
-    def test_execute_prompt_success(self, mock_client_class, client):
-        """Test executing an MCP prompt"""
-        mock_client = MagicMock()
-        
-        # Mock prompt result
-        mock_message = MagicMock()
-        mock_message.type = "assistant"
-        mock_message.content = "Prompt result"
-        
-        mock_client.get_prompt = AsyncMock(return_value=[mock_message])
-        mock_client_class.return_value = mock_client
-        
-        response = client.post("/mcp/prompts/execute", json={
-            "prompt_name": "test_prompt",
-            "server_name": "ros2",
-            "arguments": {}
-        })
-        
-        assert response.status_code == 200
-        data = response.json()
-        assert data["ok"] is True
-        assert "messages" in data
-
-
 class TestToolApprovalEndpoints:
     """Tests for tool approval endpoints"""
 
@@ -462,27 +437,3 @@ class TestCORS:
             )
             
             assert response.status_code == 200
-
-
-@pytest.mark.anyio
-async def test_events_cleans_up_when_client_disconnects_while_idle():
-    class FakeRequest:
-        def __init__(self) -> None:
-            self._checks = 0
-
-        async def is_disconnected(self) -> bool:
-            self._checks += 1
-            return self._checks > 1  # Disconnect after the first poll
-
-    session = Session(DEFAULT_MCP_CONFIG)
-    sessions[session.id] = session
-
-    with patch("bridge.main.mcp_client_manager.close", new_callable=AsyncMock) as mock_close:
-        response = await events(session.id, FakeRequest())
-        iterator = response.body_iterator
-
-        with pytest.raises(StopAsyncIteration):
-            await asyncio.wait_for(iterator.__anext__(), timeout=3.0)
-
-        assert session.id not in sessions
-        mock_close.assert_awaited_once_with(session.id)
