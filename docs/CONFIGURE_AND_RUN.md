@@ -45,7 +45,15 @@ npm start
 
 ## Run in docker
 
+## Before
+### Pass api key to Open AI into copied `.env` file
+```bash
+cd wisevision_dashboard/app/server_ai_agent
+cp .env.example .env
+# Then edit .env file and add your OpenAI API key
 ```
-cd wisevision-dashboard
+
+```
+cd wisevision_dashboard
 docker-compose up --build
 ```

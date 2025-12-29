@@ -54,3 +54,7 @@ app/client/yarn-error.log*
 
 # environment
 **.env
+
+#cache 
+/app/server_ai_agent/src/agent/__pycache__/
+/app/server_ai_agent/src/bridge/__pycache__/

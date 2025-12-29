@@ -1,0 +1,427 @@
+/*
+ * Copyright (C) 2025 wisevision
+ *
+ * SPDX-License-Identifier: MPL-2.0
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
+/* Modern color scheme and design tokens */
+:root {
+  --primary-50: #f0f7ff;
+  --primary-100: #e0efff;
+  --primary-500: #3b82f6;
+  --primary-600: #2563eb;
+  --primary-700: #1d4ed8;
+  
+  --success-500: rgb(16, 185, 129);
+  --success-600: #059669;
+  
+  --danger-500: #ef4444;
+  --danger-600: #dc2626;
+  
+  --warning-500: #f59e0b;
+  --warning-600: #d97706;
+  
+  --gray-50: #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-400: #9ca3af;
+  --gray-500: #6b7280;
+  --gray-600: #4b5563;
+  --gray-700: #374151;
+  --gray-800: #1f2937;
+  --gray-900: #111827;
+  
+  --surface-primary: #ffffff;
+  --surface-secondary: #f8fafc;
+  --surface-tertiary: #f1f5f9;
+  --surface-dark: #0f172a;
+  --surface-dark-secondary: #1e293b;
+  --surface-dark-tertiary: #334155;
+  
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Base component styles - inline display */
+.storage-modal,
+.create-action-modal {
+  position: relative;
+  display: block;
+  padding: 0;
+  background: transparent;
+  backdrop-filter: none;
+  animation: none;
+}
+
+/* Remove modal overlay animations - now inline component */
+.storage-modal.closing,
+.create-action-modal.closing {
+  display: none;
+}
+
+.storage-content,
+.modal-content {
+  background: var(--surface-dark);
+  border: 1px solid var(--surface-dark-tertiary);
+  border-radius: var(--radius-xl);
+  padding: 32px;
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  box-shadow: var(--shadow-xl);
+  position: relative;
+  animation: none;
+}
+
+.storage-content.closing,
+.modal-content.closing {
+  display: none;
+}
+
+/* Typography */
+.storage-title,
+h2 {
+  margin: 0 0 24px 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--gray-50);
+  letter-spacing: -0.025em;
+}
+
+/* Menu grid */
+.storage-menu {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  margin-top: 32px;
+}
+
+/* Button system */
+.storage-btn,
+.add-button,
+.close-button,
+.back-button {
+  padding: 14px 24px;
+  border-radius: var(--radius-lg);
+  border: 0;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  position: relative;
+  overflow: hidden;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--gray-50);
+}
+
+.storage-btn {
+  background: linear-gradient(135deg, var(--surface-dark-secondary), var(--surface-dark-tertiary));
+  border: 1px solid var(--gray-600);
+  box-shadow: var(--shadow-sm);
+}
+
+.storage-btn:hover {
+  background: linear-gradient(135deg, var(--surface-dark-tertiary), var(--gray-600));
+  border-color: var(--gray-500);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.storage-btn:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+
+.add-button {
+  background: linear-gradient(135deg, var(--success-600), var(--success-500));
+  box-shadow: var(--shadow-md);
+  color: white;
+  transition: all 0.15s ease;
+}
+
+.add-button:hover:not(:disabled) {
+  background: rgba(0, 255, 94, 0.519);
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-1px);
+}
+
+.add-button:disabled,
+.add-button[disabled] {
+  background: linear-gradient(135deg, var(--success-600), var(--success-500));
+  box-shadow: var(--shadow-sm);
+  cursor: not-allowed;
+  opacity: 0.9;
+  filter: brightness(0.95);
+  transform: none;
+}
+
+.add-button:disabled:hover,
+.add-button[disabled]:hover {
+  background: linear-gradient(135deg, var(--success-600), var(--success-500));
+  box-shadow: var(--shadow-sm);
+  opacity: 0.9;
+  filter: brightness(0.95);
+  transform: none;
+}
+
+.add-button[style*="ff625a"] {
+  background: linear-gradient(135deg, var(--danger-600), var(--danger-500)) !important;
+}
+
+.add-button[style*="ff625a"]:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--danger-700), var(--danger-600)) !important;
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-1px);
+}
+
+.add-button[style*="ff8c42"] {
+  background: linear-gradient(135deg, var(--warning-600), var(--warning-500)) !important;
+}
+
+.add-button[style*="ff8c42"]:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--warning-700), var(--warning-600)) !important;
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-1px);
+}
+
+.close-button {
+  background: linear-gradient(135deg, var(--gray-600), var(--gray-500));
+  box-shadow: var(--shadow-md);
+}
+
+.close-button:hover {
+  background: linear-gradient(135deg, var(--gray-700), var(--gray-600));
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-1px);
+}
+
+.back-button {
+  background: linear-gradient(135deg, var(--surface-dark-tertiary), var(--gray-700));
+  border: 1px solid var(--gray-600);
+  box-shadow: var(--shadow-sm);
+}
+
+.back-button:hover {
+  background: linear-gradient(135deg, var(--gray-700), var(--gray-600));
+  border-color: var(--gray-500);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+/* Messages */
+.message,
+.storage-msg {
+  margin-top: 16px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid;
+  text-align: center;
+}
+
+/* Success messages - green */
+.message.success {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: var(--success-600);
+  color: var(--success-500);
+}
+
+/* Error messages - red */
+.message.error {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: var(--danger-600);
+  color: var(--danger-500);
+}
+
+/* Default/neutral messages */
+.message:not(.success):not(.error),
+.storage-msg {
+  background: var(--surface-dark-secondary);
+  border-color: var(--surface-dark-tertiary);
+  color: var(--gray-200);
+}
+
+/* Close button styles removed - no X button anymore */
+
+/* Form styles */
+.new-action-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gray-300);
+  letter-spacing: 0.025em;
+}
+
+.form-group input {
+  padding: 12px 16px;
+  border: 1.5px solid var(--surface-dark-tertiary);
+  border-radius: var(--radius-md);
+  background: var(--surface-dark-secondary);
+  color: var(--gray-100);
+  font-size: 15px;
+  transition: all var(--transition-fast);
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  background: var(--surface-dark);
+}
+
+/* React Select custom styles */
+.multi-select .my-select__control {
+  background: var(--surface-dark-secondary) !important;
+  border: 1.5px solid var(--surface-dark-tertiary) !important;
+  border-radius: var(--radius-md) !important;
+  min-height: 48px !important;
+  transition: all var(--transition-fast) !important;
+  box-shadow: none !important;
+}
+
+.multi-select .my-select__control:hover {
+  border-color: var(--gray-500) !important;
+}
+
+.multi-select .my-select__control--is-focused {
+  border-color: var(--primary-500) !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+  background: var(--surface-dark) !important;
+}
+
+.multi-select .my-select__menu {
+  background: var(--surface-dark) !important;
+  border: 1px solid var(--surface-dark-tertiary) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+
+.multi-select .my-select__option {
+  background: transparent !important;
+  color: var(--gray-200) !important;
+  padding: 12px 16px !important;
+  transition: all var(--transition-fast) !important;
+}
+
+.multi-select .my-select__option:hover {
+  background: var(--surface-dark-secondary) !important;
+  color: var(--gray-50) !important;
+}
+
+.multi-select .my-select__option--is-selected {
+  background: var(--primary-600) !important;
+  color: white !important;
+}
+
+.multi-select .my-select__multi-value {
+  background: var(--primary-600) !important;
+  border-radius: var(--radius-sm) !important;
+}
+
+.multi-select .my-select__multi-value__label {
+  color: white !important;
+  font-weight: 500 !important;
+}
+
+.multi-select .my-select__multi-value__remove {
+  color: rgba(255, 255, 255, 0.7) !important;
+  transition: all var(--transition-fast) !important;
+}
+
+.multi-select .my-select__multi-value__remove:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+  color: white !important;
+}
+
+.multi-select .my-select__placeholder,
+.multi-select .my-select__single-value {
+  color: var(--gray-300) !important;
+}
+
+.multi-select .my-select__input-container {
+  color: var(--gray-100) !important;
+}
+
+/* Modal actions */
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 32px;
+  flex-wrap: wrap;
+}
+
+.modal-actions > * {
+  flex: 1;
+  min-width: 120px;
+}
+
+/* Responsive design */
+@media (max-width: 640px) {
+  .storage-content,
+  .modal-content {
+    width: 100%;
+    margin: 0;
+    padding: 24px;
+  }
+  
+  .storage-menu {
+    grid-template-columns: 1fr;
+  }
+  
+  .modal-actions {
+    flex-direction: column;
+  }
+  
+  .modal-actions > * {
+    flex: none;
+  }
+}
+
+/* Special button variants for specific actions */
+.add-button[style*="ff625a"] {
+  background: linear-gradient(135deg, var(--danger-600), var(--danger-500)) !important;
+}
+
+.add-button[style*="ff625a"]:hover {
+  background: linear-gradient(135deg, var(--danger-700), var(--danger-600)) !important;
+}
+
+.add-button[style*="ff8c42"] {
+  background: linear-gradient(135deg, var(--warning-600), var(--warning-500)) !important;
+}
+
+.add-button[style*="ff8c42"]:hover {
+  background: linear-gradient(135deg, var(--warning-700), var(--warning-600)) !important;
+}

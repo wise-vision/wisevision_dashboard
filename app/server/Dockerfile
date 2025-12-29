@@ -1,7 +1,11 @@
-FROM wisevision/ros_with_wisevision_msgs_and_wisevision_core:humble
+ARG ROS_DISTRO=jazzy
+FROM wisevision_base_image_dev:${ROS_DISTRO}
+# TODO: Change to base before merge to main: FROM wisevision/ros_with_wisevision_msgs_and_wisevision_core:humble
+
 
 RUN apt-get update && apt-get install -y \
     python3-pip \
+    ros-${ROS_DISTRO}-rmw-zenoh-cpp \
     python3-vcstool \
     build-essential \
     cmake \
@@ -15,10 +19,16 @@ ENV PYTHONPATH=/usr/src/app
 
 WORKDIR /usr/src/app/server
 
-RUN pip3 install --no-cache-dir -r requirements.txt
+RUN if [ "$ROS_DISTRO" = "humble" ]; then \
+    pip3 install --no-cache-dir -r requirements.txt; \
+    elif [ "$ROS_DISTRO" = "jazzy" ]; then \
+    pip3 install --no-cache-dir -r requirements.txt --break-system-packages; \
+    fi
 WORKDIR /usr/src
 SHELL ["/bin/bash", "-c"]
 
-ENTRYPOINT ["/bin/bash", "-c", "source /opt/ros/$ROS_DISTRO/setup.bash && source /root/wisevision_ws/install/setup.bash && exec gunicorn -k gthread -w 1 --threads 4 -b 0.0.0.0:5000 app.server.run:app"]
+ENTRYPOINT ["/bin/bash", "-c", "if [ -n \"$RMW_IMPLEMENTATION\" ]; then export RMW_IMPLEMENTATION=$RMW_IMPLEMENTATION; fi && \
+            source /opt/ros/$ROS_DISTRO/setup.bash && source /root/wisevision_ws/install/setup.bash && \
+            exec gunicorn -k gthread -w 1 --threads 4 -b 0.0.0.0:5000 app.server.run:app"]
 
 EXPOSE 5000

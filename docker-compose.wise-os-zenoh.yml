@@ -1,0 +1,24 @@
+include:
+  - ./app/grafana_plugin_client/docker-compose.prod.yml
+  - ./app/server_ai_agent/docker-compose.prod.yml
+
+services:
+  backend:
+    build:
+      context: . 
+      dockerfile: app/server/Dockerfile
+      args:
+        ROS_DISTRO: jazzy
+    depends_on:
+     - zenoh-rmw-router
+    ports:
+      - '5000:5000'
+    ipc: "host"
+    pid: "host"
+    stdin_open: true
+    tty: true
+    network_mode: host
+    environment:
+      FLASK_ENV: debug
+      RMW_IMPLEMENTATION: rmw_zenoh_cpp
+    restart: unless-stopped

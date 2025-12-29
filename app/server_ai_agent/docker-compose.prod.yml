@@ -1,0 +1,53 @@
+services:
+  backend_agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wisevision-backend-agent-prod
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      # Bridge configuration
+      - BRIDGE_HOST=0.0.0.0
+      - BRIDGE_PORT=8089
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000}
+      
+      # OpenAI API Key - MUST be set in .env file
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      
+      # Production mode
+      - DEV=0
+    env_file:
+      - .env
+    volumes:
+      # Only mount logs in production
+      - agent-logs:/app/logs
+      # Mount Docker socket to enable Docker-in-Docker for MCP ROS2 server
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Mount /dev/shm for ROS2 shared memory
+      - /dev/shm:/dev/shm
+    # Remove networks section when using host networking
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8089/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "com.wisevision.service=backend-agent"
+      - "com.wisevision.description=AI Agent Backend Service - Production"
+      - "com.wisevision.environment=production"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+networks:
+  wisevision-network:
+    driver: bridge
+    name: wisevision-network
+
+volumes:
+  agent-logs:
+    driver: local

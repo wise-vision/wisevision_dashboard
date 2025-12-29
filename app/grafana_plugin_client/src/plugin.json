@@ -1,0 +1,60 @@
+{
+  "$schema": "https://raw.githubusercontent.com/grafana/grafana/master/docs/sources/developers/plugins/plugin.schema.json",
+  "type": "app",
+  "name": "WiseOS",
+  "id": "wisevision-wiseos-app",
+  "info": {
+    "keywords": ["app", "storage", "recording", "influxdb", "ros2", "data-management", "ai-agent"],
+    "description": "WiseOS — The AI-Powered Control Hub for ROS 2",
+    "author": {
+      "name": "WiseVision"
+    },
+    "logos": {
+      "small": "img/logo.png",
+      "large": "img/logo.png"
+    },
+    "screenshots": [],
+    "version": "%VERSION%",
+    "updated": "%TODAY%"
+  },
+  "includes": [
+    {
+      "type": "page",
+      "name": "Page One",
+      "path": "/a/%PLUGIN_ID%/one",
+      "role": "Viewer",
+      "addToNav": true,
+      "defaultNav": true
+    },
+    {
+      "type": "page",
+      "name": "AI Agent",
+      "path": "/a/%PLUGIN_ID%/ai-agent",
+      "role": "Viewer", 
+      "addToNav": true,
+      "defaultNav": false
+    },
+    {
+      "type": "page",
+      "icon": "cog",
+      "name": "Configuration",
+      "path": "/plugins/%PLUGIN_ID%",
+      "role": "Viewer",
+      "addToNav": true
+    }
+  ],
+  "routes": [
+    {
+      "path": "backend/*",
+      "url": "{{ .JsonData.apiUrl }}"
+    },
+    {
+      "path": "agent_backend/*",
+      "url":"{{ .JsonData.apiUrlAgent }}"
+    }
+  ],
+  "dependencies": {
+    "grafanaDependency": ">=10.0.3",
+    "plugins": []
+  }
+}

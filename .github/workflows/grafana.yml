@@ -1,0 +1,38 @@
+name: Grafana CI
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+      - 'stabilization/**'
+  schedule:
+    - cron: '0 22 * * *'
+
+jobs:
+  build:
+    runs-on: wisevision-runner
+    container:
+      image: node:16
+    defaults:
+      run:
+        working-directory: app/grafana_plugin_client
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: app/grafana_plugin_client/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check types
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Build frontend
+        run: npm run build
