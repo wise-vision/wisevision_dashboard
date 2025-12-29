@@ -282,6 +282,60 @@ class TestMergeWithDefaults:
         assert result["stdio_server"]["transport"] == "stdio"
         assert result["sse_server"]["transport"] == "sse"
 
+    def test_merge_ros2_docker_injects_required_flags(self):
+        default_config = {
+            "ros2": {
+                "command": "docker",
+                "args": ["run", "-i", "--rm", "wisevision/ros2_mcp:jazzy"],
+                "transport": "stdio",
+            }
+        }
+        user_config = {
+            "ros2": {
+                "command": "docker",
+                "args": ["run", "-i", "--rm", "wisevision/ros2_mcp:jazzy"],
+                "transport": "stdio",
+                "enabled": True,
+                "name": "ROS2",
+            }
+        }
+
+        import os
+        os.environ["ROS_DOMAIN_ID"] = "0"
+        result = merge_with_defaults(user_config, default_config)
+        args = result["ros2"]["args"]
+
+        assert "--network=host" in args
+        assert "--pid=host" in args
+        assert "--ipc=host" in args
+        assert "-v" in args
+        assert "/dev/shm:/dev/shm" in args
+        assert "ROS_DOMAIN_ID=0" in args
+
+    def test_merge_ros2_docker_can_target_specific_docker_network(self, monkeypatch):
+        monkeypatch.setenv("ROS_DOMAIN_ID", "0")
+        monkeypatch.setenv("ROS2_MCP_DOCKER_NETWORK", "wisevision_dashboard_default")
+
+        default_config = {
+            "ros2": {
+                "command": "docker",
+                "args": ["run", "-i", "--rm", "--network=host", "wisevision/ros2_mcp:jazzy"],
+                "transport": "stdio",
+            }
+        }
+        user_config = {
+            "ros2": {
+                "command": "docker",
+                "args": ["run", "-i", "--rm", "--network=host", "wisevision/ros2_mcp:jazzy"],
+                "transport": "stdio",
+            }
+        }
+
+        result = merge_with_defaults(user_config, default_config)
+        args = result["ros2"]["args"]
+        assert "--network=wisevision_dashboard_default" in args
+        assert "--network=host" not in args
+
 
 class TestUtilityFunctions:
     """Tests for utility functions"""

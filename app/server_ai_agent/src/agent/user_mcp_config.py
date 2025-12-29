@@ -94,7 +94,7 @@ def merge_with_defaults(user_config: dict[str, Any], default_config: dict[str, A
             "transport": config.get("transport", "stdio"),
         }
         merged[name] = clean_config
-    
+
     return merged
 
 

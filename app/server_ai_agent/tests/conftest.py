@@ -22,6 +22,10 @@ src_path = Path(__file__).parent.parent / "src"
 if str(src_path) not in sys.path:
     sys.path.insert(0, str(src_path))
 
+@pytest.fixture
+def anyio_backend():
+    return "asyncio"
+
 
 @pytest.fixture(autouse=True)
 def mock_environment():

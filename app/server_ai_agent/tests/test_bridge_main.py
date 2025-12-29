@@ -11,12 +11,14 @@
 """
 Tests for FastAPI bridge endpoints
 """
+import asyncio
 import pytest
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi.testclient import TestClient
 from httpx import AsyncClient
-from bridge.main import app, Session, sessions, pending_approvals
+from agent.mcp_config import DEFAULT_MCP_CONFIG
+from bridge.main import app, Session, sessions, pending_approvals, events
 
 
 @pytest.fixture
@@ -460,3 +462,27 @@ class TestCORS:
             )
             
             assert response.status_code == 200
+
+
+@pytest.mark.anyio
+async def test_events_cleans_up_when_client_disconnects_while_idle():
+    class FakeRequest:
+        def __init__(self) -> None:
+            self._checks = 0
+
+        async def is_disconnected(self) -> bool:
+            self._checks += 1
+            return self._checks > 1  # Disconnect after the first poll
+
+    session = Session(DEFAULT_MCP_CONFIG)
+    sessions[session.id] = session
+
+    with patch("bridge.main.mcp_client_manager.close", new_callable=AsyncMock) as mock_close:
+        response = await events(session.id, FakeRequest())
+        iterator = response.body_iterator
+
+        with pytest.raises(StopAsyncIteration):
+            await asyncio.wait_for(iterator.__anext__(), timeout=3.0)
+
+        assert session.id not in sessions
+        mock_close.assert_awaited_once_with(session.id)

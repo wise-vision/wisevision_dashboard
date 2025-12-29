@@ -26,6 +26,9 @@ export class MCPSessionManager {
   private listeners: Set<(state: SimpleSessionState) => void> = new Set();
   private mcpServers: MCPServerInfo[] = [];
   private customMCPConfig: Record<string, any> = {};  // Store user's custom MCP config
+  private readonly threadStorageKey = 'wisevision.mcp.streamThreadId';
+  private threadId: string;
+  private unloadHandlerRegistered = false;
 
   constructor() {
     this.sessionState = {
@@ -33,6 +36,9 @@ export class MCPSessionManager {
       connected: false,
       loading: false,
     };
+
+    this.threadId = this.createNewThreadId();
+    this.registerUnloadHandler();
   }
 
   subscribe(listener: (state: SimpleSessionState) => void) {
@@ -54,6 +60,57 @@ export class MCPSessionManager {
       this.sessionState.connected = false;
     }
     this.notifyListeners();
+  }
+
+  private createNewThreadId(): string {
+    try {
+      const existing = sessionStorage.getItem(this.threadStorageKey);
+      if (existing) {
+        return existing;
+      }
+      const id = `stream_${Math.random().toString(36).slice(2)}_${Date.now()}`;
+      sessionStorage.setItem(this.threadStorageKey, id);
+      return id;
+    } catch {
+      return `stream_${Math.random().toString(36).slice(2)}_${Date.now()}`;
+    }
+  }
+
+  private clearThreadId(): void {
+    try {
+      sessionStorage.removeItem(this.threadStorageKey);
+    } catch {
+      // ignore
+    }
+  }
+
+  private async closeThread(): Promise<void> {
+    try {
+      const url = '/api/plugin-proxy/wisevision-wiseos-app/agent_backend/mcp/threads/close';
+      await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ thread_id: this.threadId }),
+        keepalive: true,
+      });
+    } catch {
+      // ignore best-effort
+    }
+  }
+
+  private registerUnloadHandler(): void {
+    if (this.unloadHandlerRegistered) {
+      return;
+    }
+    this.unloadHandlerRegistered = true;
+
+    const handler = () => {
+      void this.closeThread();
+      this.clearThreadId();
+    };
+
+    window.addEventListener('pagehide', handler);
+    window.addEventListener('beforeunload', handler);
   }
 
   async fetchMCPServers(): Promise<MCPServerInfo[]> {
@@ -343,6 +400,7 @@ export class MCPSessionManager {
         use_mcp: true,
         require_approval: requireApproval,
         mcp_config: Object.keys(this.customMCPConfig).length > 0 ? this.customMCPConfig : undefined,
+        thread_id: this.threadId,
       };
 
       // Use fetch directly for EventSource streaming
@@ -516,9 +574,13 @@ export class MCPSessionManager {
 
               case 'tool_end':
                 // Create separate message for tool completion
+                const toolOutput = typeof data.tool_output === 'string' ? data.tool_output : '';
+                const trimmed = toolOutput.length > 4000 ? toolOutput.slice(0, 4000) + '\n... (truncated)' : toolOutput;
                 const endMsg: SimpleChatMessage = {
                   role: 'assistant',
-                  content: `**${data.tool_name}** completed`,
+                  content: trimmed
+                    ? `**${data.tool_name}** completed\n\n\`\`\`\n${trimmed}\n\`\`\``
+                    : `**${data.tool_name}** completed`,
                   timestamp: new Date(),
                   id: this.generateId(),
                 };

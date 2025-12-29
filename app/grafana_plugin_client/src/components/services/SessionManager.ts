@@ -17,6 +17,8 @@ export class SessionManager {
   private sessionState: SessionState;
   private eventSource: EventSource | null = null;
   private listeners: Set<(state: SessionState) => void> = new Set();
+  private unloadHandlerRegistered = false;
+  private readonly storageKey = 'wisevision.mcp.sessionId';
 
   constructor(baseUrl?: string) {
     // Use provided baseUrl or auto-detect based on current hostname
@@ -40,6 +42,12 @@ export class SessionManager {
       messages: [],
       isConnected: false,
     };
+
+    const staleSessionId = this.getStoredSessionId();
+    if (staleSessionId) {
+      void this.deleteSession(staleSessionId);
+      this.clearStoredSessionId();
+    }
   }
 
   subscribe(listener: (state: SessionState) => void) {
@@ -74,8 +82,65 @@ export class SessionManager {
     }
   }
 
+  private async deleteSession(sessionId: string): Promise<void> {
+    try {
+      await fetch(`${this.baseUrl}/session/${sessionId}`, { method: 'DELETE', keepalive: true });
+    } catch (error) {
+      console.warn(`Failed to delete session ${sessionId}:`, error);
+    }
+  }
+
+  private storeSessionId(sessionId: string) {
+    try {
+      sessionStorage.setItem(this.storageKey, sessionId);
+    } catch {
+      // ignore
+    }
+  }
+
+  private getStoredSessionId(): string | null {
+    try {
+      return sessionStorage.getItem(this.storageKey);
+    } catch {
+      return null;
+    }
+  }
+
+  private clearStoredSessionId() {
+    try {
+      sessionStorage.removeItem(this.storageKey);
+    } catch {
+      // ignore
+    }
+  }
+
+  private registerUnloadHandler() {
+    if (this.unloadHandlerRegistered) {
+      return;
+    }
+    this.unloadHandlerRegistered = true;
+
+    const handler = () => {
+      const sessionId = this.sessionState.id || this.getStoredSessionId();
+      if (sessionId) {
+        void this.deleteSession(sessionId);
+      }
+      this.eventSource?.close();
+    };
+
+    window.addEventListener('pagehide', handler);
+    window.addEventListener('beforeunload', handler);
+  }
+
   async createSession(mcpConfig: Record<string, Omit<MCPServerConfig, 'name'>>) {
     try {
+      const previousSessionId = this.sessionState.id;
+      if (previousSessionId) {
+        this.eventSource?.close();
+        this.eventSource = null;
+        await this.deleteSession(previousSessionId);
+      }
+
       console.log(`Attempting to create session at: ${this.baseUrl}/session`);
       
       // Get OpenAI API key from plugin settings
@@ -108,6 +173,8 @@ export class SessionManager {
         isConnected: true,
       };
 
+      this.storeSessionId(result.sessionId);
+      this.registerUnloadHandler();
       this.connectToEvents();
       this.notifyListeners();
       return result.sessionId;
@@ -232,9 +299,15 @@ export class SessionManager {
   }
 
   disconnect() {
+    const sessionId = this.sessionState.id;
     this.eventSource?.close();
     this.eventSource = null;
     this.sessionState.isConnected = false;
+    this.sessionState.id = null;
+    this.clearStoredSessionId();
+    if (sessionId) {
+      void this.deleteSession(sessionId);
+    }
     this.notifyListeners();
   }
 

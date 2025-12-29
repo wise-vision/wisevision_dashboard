@@ -24,7 +24,6 @@ from agent.streaming_runner import stream_graph
 from agent.mcp_config import DEFAULT_MCP_CONFIG
 from agent.mcp_client_manager import mcp_client_manager
 from agent.user_mcp_config import load_user_mcp_config, save_user_mcp_config, merge_with_defaults
-from langchain_mcp_adapters.client import MultiServerMCPClient
 
 
 class Settings(BaseSettings):
@@ -97,6 +96,9 @@ async def delete_session(session_id: str):
     s = sessions.pop(session_id, None)
     if not s:
         raise HTTPException(404, "Unknown session")
+    # Clear agent cache for this session
+    mcp_client_manager.clear_agent_cache_for_thread(session_id)
+    # Close MCP client when session is explicitly deleted
     await mcp_client_manager.close(session_id)
     return {"ok": True}
 
@@ -114,8 +116,9 @@ async def events(session_id: str, request: Request):
                 evt = await s.queue.get()
                 yield f"data: {json.dumps(evt)}\n\n"
         finally:
-            sessions.pop(session_id, None)
-            await mcp_client_manager.close(session_id)
+            # Don't close MCP client here - keep it alive for the session
+            # It will only be closed when DELETE /session/{session_id} is called
+            pass
 
     headers = {
         "Content-Type": "text/event-stream",
@@ -134,7 +137,7 @@ async def tools_list(session_id: str):
     return {"tools": [{"name": t.name, "description": t.description} for t in tools]}
 
 @app.get("/mcp/prompts/list")
-async def list_prompts():
+async def list_prompts(session_id: str | None = None):
     """Get available prompts from all configured MCP servers"""
     try:
         # Filter out disabled servers BEFORE merging
@@ -151,40 +154,57 @@ async def list_prompts():
                 "message": "No MCP servers enabled"
             })
         
-        # Create client (no context manager in 0.1.0+)
-        mcp_client = MultiServerMCPClient(mcp_config)
+        # Use session_id if provided, otherwise use a default one for prompts
+        thread_id = session_id or "prompts-session"
+        
+        # Get tools from manager (this ensures we use cached client)
+        # This initializes the MCP client if not already done
+        await mcp_client_manager.get_tools(thread_id, mcp_config)
+        
+        # Get the cached MCP client from manager
+        if thread_id not in mcp_client_manager._entries:
+            return JSONResponse({
+                "prompts": [],
+                "count": 0,
+                "ok": False,
+                "error": "MCP client not initialized"
+            }, status_code=500)
+        
+        mcp_client = mcp_client_manager._entries[thread_id].client
         
         # Collect prompts from all servers
         all_prompts = []
         
         for server_name in mcp_config.keys():
             try:
-                # Use session to access server-specific functionality
-                async with mcp_client.session(server_name, auto_initialize=True) as session:
-                    # List prompts from this server
-                    prompts_result = await session.list_prompts()
-                    
-                    if hasattr(prompts_result, 'prompts'):
-                        for prompt in prompts_result.prompts:
-                            prompt_info = {
-                                "name": getattr(prompt, 'name', ''),
-                                "description": getattr(prompt, 'description', ''),
-                                "server": server_name,
-                                "arguments": []
-                            }
-                            
-                            # Extract argument information if available
-                            if hasattr(prompt, 'arguments'):
-                                args_list = prompt.arguments if isinstance(prompt.arguments, list) else []
-                                for arg in args_list:
-                                    arg_info = {
-                                        "name": getattr(arg, 'name', str(arg)),
-                                        "description": getattr(arg, 'description', ''),
-                                        "required": getattr(arg, 'required', False),
-                                    }
-                                    prompt_info["arguments"].append(arg_info)
-                            
-                            all_prompts.append(prompt_info)
+                # DON'T use async with - it closes the session and restarts the container
+                # Just get the session and use it directly
+                session = mcp_client.session(server_name, auto_initialize=True)
+                
+                # List prompts from this server
+                prompts_result = await session.list_prompts()
+                
+                if hasattr(prompts_result, 'prompts'):
+                    for prompt in prompts_result.prompts:
+                        prompt_info = {
+                            "name": getattr(prompt, 'name', ''),
+                            "description": getattr(prompt, 'description', ''),
+                            "server": server_name,
+                            "arguments": []
+                        }
+                        
+                        # Extract argument information if available
+                        if hasattr(prompt, 'arguments'):
+                            args_list = prompt.arguments if isinstance(prompt.arguments, list) else []
+                            for arg in args_list:
+                                arg_info = {
+                                    "name": getattr(arg, 'name', str(arg)),
+                                    "description": getattr(arg, 'description', ''),
+                                    "required": getattr(arg, 'required', False),
+                                }
+                                prompt_info["arguments"].append(arg_info)
+                        
+                        all_prompts.append(prompt_info)
             except Exception as e:
                 # Server might not support prompts or might be offline
                 # This is expected for servers like 'math' that don't have prompts
@@ -218,7 +238,7 @@ class ExecutePromptBody(BaseModel):
     arguments: dict[str, Any] = {}
 
 @app.post("/mcp/prompts/execute")
-async def execute_prompt(body: ExecutePromptBody):
+async def execute_prompt(body: ExecutePromptBody, session_id: str | None = None):
     """Execute a specific prompt with provided arguments"""
     try:
         # Filter out disabled servers BEFORE merging
@@ -239,8 +259,21 @@ async def execute_prompt(body: ExecutePromptBody):
                 "error": f"Server '{body.server_name}' not found or not enabled"
             }, status_code=404)
         
-        # Create client (no context manager in 0.1.0+)
-        mcp_client = MultiServerMCPClient(mcp_config)
+        # Use session_id if provided, otherwise use a default one for prompts
+        thread_id = session_id or "prompts-session"
+        
+        # Get tools from manager (this ensures we use cached client)
+        # This initializes the MCP client if not already done
+        await mcp_client_manager.get_tools(thread_id, mcp_config)
+        
+        # Get the cached MCP client from manager
+        if thread_id not in mcp_client_manager._entries:
+            return JSONResponse({
+                "ok": False,
+                "error": "MCP client not initialized"
+            }, status_code=500)
+        
+        mcp_client = mcp_client_manager._entries[thread_id].client
         
         # Use get_prompt method to execute the prompt
         result_messages = await mcp_client.get_prompt(
